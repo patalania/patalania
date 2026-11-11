@@ -17,7 +17,3 @@ Second Life is a trademark of Linden Research, Inc. Patalania is not affiliated 
 ## Build
 
 Build instructions inherited from the base: [Linux](doc/building_linux.md). Patalania-specific build notes will follow.
-
-## Website
-
-[patalania.org](https://patalania.org) (in preparation)
