@@ -122,7 +122,7 @@ bool check_for_card(const char* RENDERER, const char* bad_card)
             "\n"
             "If you own a supported card and continue to receive this message, try \n"
             "updating to the latest video card drivers. Otherwise contact the\n"
-            "Phoenix Viewer Support group in world, or visit www.firestormviewer.org\n"
+            "Phoenix Viewer Support group in world, or visit github.com/patalania/patalania\n"
             "for support.\n"
             "\n"
             "You can try to run Patalania, but it will probably crash or run\n"

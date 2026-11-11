@@ -126,7 +126,7 @@ SOLUTION:- Usually this indicates that your graphics card does not meet
    <https://help.ubuntu.com/community/BinaryDriverHowto>
  * If your distribution does not make it easy, then you can download the
    required Linux drivers straight from your graphics card manufacturer:
-   - <https://wiki.firestormviewer.org/downloads#video_drivers>
+   - <https://github.com/patalania/patalania/blob/main/docs/HELP.md>
 
 PROBLEM 2:- My whole system seems to hang when running Patalania.
 SOLUTION:- This is typically a hardware/driver issue.  The first thing to
@@ -202,7 +202,7 @@ configuration options for advanced troubleshooters.
 We're pleased to have released Patalania client's source code under
 an Open Source license compatible with the 'LGPL'.
 <https://github.com/patalania/patalania>
-Patalania is based on the Firestorm viewer (https://www.firestormviewer.org).
+Patalania is based on the Firestorm viewer (https://github.com/patalania/patalania).
 
 
 8. GETTING MORE HELP AND REPORTING PROBLEMS

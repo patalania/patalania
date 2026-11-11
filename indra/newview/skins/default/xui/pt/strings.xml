@@ -216,7 +216,7 @@ Versão do servidor de voz: [VOICE_VERSION]
 	</string>
 	<string name="LoginFailedViewerNotPermitted">
 		O viewer que você está usando não pode mais acessar o Second Life. Acesse a página abaixo para baixar um novo viewer:
-https://www.firestormviewer.org/choose-your-platform/
+https://github.com/patalania/patalania/releases
 Para mais informações, veja o FAQ abaixo:
 http://secondlife.com/viewer-access-faq
 	</string>
@@ -837,7 +837,7 @@ são permitidas.
 	</string>
 	<string name="AssetUploadRequestInvalid">
 Erro na solicitação de upload. Acesse
-https://www.firestormviewer.org/support para obter ajuda com este problema.
+https://github.com/patalania/patalania/blob/main/SUPPORT.md para obter ajuda com este problema.
 	</string>
 	<string name="SettingValidationError">
 		Falha na validação ao importar a configuração [NAME]

@@ -953,17 +953,17 @@ class Windows_x86_64_Manifest(ViewerManifest):
         # </FS:Ansariel>
     def dl_url_from_channel(self):
         if self.channel_type() == 'release':
-            return 'https://www.firestormviewer.org/choose-your-platform'
+            return 'https://github.com/patalania/patalania/releases'
         elif self.channel_type() == 'beta':
-            return 'https://www.firestormviewer.org/early-access-beta-downloads'
+            return 'https://github.com/patalania/patalania/releases'
         elif self.channel_type() == 'alpha':
-            return 'https://www.firestormviewer.org/early-access-alpha-downloads'
+            return 'https://github.com/patalania/patalania/releases'
         elif self.channel_type() == 'manual':
-            return 'https://www.firestormviewer.org/early-access-manual-downloads'
+            return 'https://github.com/patalania/patalania/releases'
         elif self.channel_type() == 'profiling':
-            return 'https://www.firestormviewer.org/profiling-downloads'
+            return 'https://github.com/patalania/patalania/releases'
         elif self.channel_type() == 'nightly':
-            return 'https://www.firestormviewer.org/firestorm-nightly-build-downloads'
+            return 'https://github.com/patalania/patalania/releases'
         else:
             return '<NO-URL>'
         

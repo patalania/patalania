@@ -213,7 +213,7 @@ Voice-Serverversion: [VOICE_VERSION]
 		Beenden
 	</string>
 	<string name="create_account_url">
-		https://www.firestormviewer.org/join-secondlife/
+		https://join.secondlife.com/
 	</string>
 	<string name="AgniGridLabel">
 		Second Life Main Grid (Agni)
@@ -226,7 +226,7 @@ Voice-Serverversion: [VOICE_VERSION]
 	</string>
 	<string name="LoginFailedViewerNotPermitted">
 		Mit dem von Ihnen verwendeten Viewer ist der Zugriff nicht mehr möglich. Laden Sie von den folgenden Seite einen neuen Viewer herunter:
-https://www.firestormviewer.org/choose-your-platform/
+https://github.com/patalania/patalania/releases
 
 Weitere Informationen finden Sie auf der folgenden FAQ-Seite: 
 http://secondlife.com/viewer-access-faq
@@ -871,7 +871,7 @@ sind erlaubt.
 	</string>
 	<string name="AssetUploadRequestInvalid">
 Fehler in der Upload-Anforderung. Bitte besuchen Sie
-https://www.firestormviewer.org/support für Hilfe zum Lösen des Problems.
+https://github.com/patalania/patalania/blob/main/SUPPORT.md für Hilfe zum Lösen des Problems.
 	</string>
 	<string name="SettingValidationError">
 		Validierung für das Importieren der Einstellungen [NAME] fehlgeschlagen
@@ -3243,7 +3243,7 @@ Falls diese Nachricht erneut angezeigt wird, starten Sie Ihren Computer bitte ne
 Möchten Sie einen Absturz-Bericht einschicken?
 	</string>
 	<string name="MBFreezeDetected">
-		[APP_NAME] scheint eingefroren zu sein. Falls dieses Problem regelmäßig auftritt, kontaktieren Sie den Support unter https://www.firestormviewer.org/support.
+		[APP_NAME] scheint eingefroren zu sein. Falls dieses Problem regelmäßig auftritt, kontaktieren Sie den Support unter https://github.com/patalania/patalania/blob/main/SUPPORT.md.
 	</string>
 	<string name="MBAlert">
 		Benachrichtigung

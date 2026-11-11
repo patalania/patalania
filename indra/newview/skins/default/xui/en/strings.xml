@@ -11,7 +11,7 @@
 	<string name="CAPITALIZED_APP_NAME">PATALANIA</string>
 	<string name="SECOND_LIFE_GRID">Second Life Grid</string>
 	<string name="SUPPORT_SITE">Firestorm Support Portal</string>
-	<string name="DOWNLOAD_URL">https://www.firestormviewer.org/choose-your-platform/</string>
+	<string name="DOWNLOAD_URL">https://github.com/patalania/patalania/releases</string>
 	<string name="CURRENT_GRID"/> <!-- Will be set in fsgridhandler.cpp / llviewernetwork.cpp -->
 	<string name="VIEWER_GENERATION">Viewer [VERSION]</string>
 	<string name="SHORT_VIEWER_GENERATION">V[VERSION]</string>
@@ -135,17 +135,17 @@ Voice Server Version: [VOICE_VERSION]
 	<string name="LoginFailedNoNetwork">Network error: Could not establish connection, please check your network connection.</string>
 	<string name="LoginFailedHeader">Login failed.</string>
 	<string name="Quit">Quit</string>
-	<string name="create_account_url">https://www.firestormviewer.org/join-secondlife/</string>
+	<string name="create_account_url">https://join.secondlife.com/</string>
 	
 	<string name="AgniGridLabel">Second Life Main Grid (Agni)</string>
 	<string name="AditiGridLabel">Second Life Beta Test Grid (Aditi)</string>
     <string name="AgniGridLabelShort">Agni (production)</string>
     <string name="AditiGridLabelShort">Aditi (beta)</string>
 	
-	<string name="ViewerDownloadURL">https://www.firestormviewer.org/choose-your-platform/</string>
+	<string name="ViewerDownloadURL">https://github.com/patalania/patalania/releases</string>
 	<string name="LoginFailedViewerNotPermitted">
 The viewer you are using can no longer access Second Life. Please visit the following page to download a new viewer:
-https://www.firestormviewer.org/choose-your-platform/
+https://github.com/patalania/patalania/releases
 
 For more information, see our FAQ below:
 http://secondlife.com/viewer-access-faq</string>
@@ -409,7 +409,7 @@ are allowed.
 
 	<string name="ReleaseNotes">Release Notes</string>
 	<!-- Always mark translate="false" for strings that are nothing but URLs, as they don't need translation. -->
-	<string name="RELEASE_NOTES_BASE_URL" translate="false">https://wiki.firestormviewer.org/changelog:firestorm_change_log_</string>
+	<string name="RELEASE_NOTES_BASE_URL" translate="false">https://github.com/patalania/patalania/blob/main/docs/HELP.md</string>
 
 	<!-- Indicates something is being loaded. Maybe should be merged with RetrievingData -->
 	<string name="LoadingData">Loading...</string>
@@ -450,7 +450,7 @@ are allowed.
 	<string name="AssetUploadServerUnavaliable">Service not available or upload timeout was reached.</string>
 	<string name="AssetUploadRequestInvalid">
 Error in upload request.  Please visit 
-https://www.firestormviewer.org/support for help fixing this problem.
+https://github.com/patalania/patalania/blob/main/SUPPORT.md for help fixing this problem.
 </string>
 
 	<!-- Settings errors -->
@@ -1530,7 +1530,7 @@ If this message persists, restart your computer.
 Would you like to send a crash report?
 	</string>
     <string name="MBFreezeDetected">
-        [APP_NAME] appears to have frozen. If this issue occurs regularly, please contact support at https://www.firestormviewer.org/support.
+        [APP_NAME] appears to have frozen. If this issue occurs regularly, please contact support at https://github.com/patalania/patalania/blob/main/SUPPORT.md.
     </string>
 	<string name="MBAlert">Notification</string>
 	<string name="MBNoDirectX">

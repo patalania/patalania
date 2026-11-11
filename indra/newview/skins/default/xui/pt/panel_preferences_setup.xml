@@ -3,7 +3,7 @@
 	<tab_container name="tabs" label="Hardware/Internet">
 		<panel label="Conexão" name="tab-conn">
 			<text name="Maximum bandwidth">
-				Largura de banda máxima ([https://wiki.firestormviewer.org/fs_speedtest Ver recomendações?]):
+				Largura de banda máxima ([https://github.com/patalania/patalania/blob/main/docs/HELP.md Ver recomendações?]):
 			</text>
 			<text name="NetworkPrefText1">
 				Sem fio
@@ -46,7 +46,7 @@
 		</panel>
 		<panel label="Diretórios" name="tab-dir">
 			<text name="cache_size_label_l">
-				Tamanho do cache de texturas ([https://wiki.firestormviewer.org/cache Ver recomendações?]):
+				Tamanho do cache de texturas ([https://github.com/patalania/patalania/blob/main/docs/HELP.md Ver recomendações?]):
 			</text>
 			<text name="asset_cache_size_label_l">
 				Tamanho do cache de assets:

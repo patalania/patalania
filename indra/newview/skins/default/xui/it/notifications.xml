@@ -31,7 +31,7 @@ Dettagli errore: La notifica denominata &apos;[_NAME]&apos; non è stata trovata
 		<usetemplate name="okcancelbuttons" notext="Annulla" yestext="Si"/>
 	</notification>
 	<notification name="BadInstallation">
-		Il programma [APP_NAME] ha riscontrato un&apos;errore durante il tentativo di aggiornamento.  [https://www.firestormviewer.org/downloads Scarica l&apos;ultima versione] del viewer.
+		Il programma [APP_NAME] ha riscontrato un&apos;errore durante il tentativo di aggiornamento.  [https://github.com/patalania/patalania/releases Scarica l&apos;ultima versione] del viewer.
 	</notification>
 	<notification name="LoginFailedNoNetwork">
 		Non è possibile collegarsi alla [CURRENT_GRID].
@@ -3669,7 +3669,7 @@ Consigliamo di controllare le impostazioni di rete e del firewall.
 Disabilitare tutte le funzioni SIP ALG sul router.
 
 Le comunicazioni tramite voce non saranno disponibili.
-https://wiki.firestormviewer.org/fs_voice
+https://github.com/patalania/patalania/blob/main/docs/HELP.md
 		<usetemplate ignoretext="Avvisami quando non è possibile la connessione con il server voce" name="okignore"/>
 	</notification>
 	<notification name="NoVoiceConnect-GIAB">
@@ -3677,7 +3677,7 @@ https://wiki.firestormviewer.org/fs_voice
 
 Le comunicazioni tramite voce non saranno disponibili.
 Consigliamo di controllare le impostazioni di rete e del firewall.
-[https://wiki.firestormviewer.org/fs_voice]
+[https://github.com/patalania/patalania/blob/main/docs/HELP.md]
 	</notification>
 	<notification name="AvatarRezLeftNotification">
 		( presente da [EXISTENCE] secondi )
@@ -5392,7 +5392,7 @@ Alcuni programmi antivirus potrebbero bloccare erroneamente parti di [APP_NAME],
 
 Per istruzioni dettagliate su come autorizzare [APP_NAME], che includono l'elenco di file e cartelle da escludere, consulta la nostra guida:
 
-https://wiki.firestormviewer.org/antivirus_whitelisting
+https://github.com/patalania/patalania/blob/main/docs/HELP.md
 	</notification>
 
 	<notification name="FSSetTitleRegion">

@@ -288,22 +288,14 @@
 		<menu_item_call label="L$マーケットデータ" name="LindenXchange"/>
 		<menu_item_call label="スクリプトライブラリ" name="Script Library"/>
 		<menu_item_call label="ＳＬコミュニティ（ブログ、フォーラム、ニュース）" name="SL Community Pages"/>
-		<menu_item_call label="Patalaniaブログ" name="Firestorm Blog"/>
-		<menu_item_call label="Firestorm Flickr" name="Firestorm Flickr"/>
-		<menu_item_call label="Firestorm YouTube" name="Firestorm YouTube"/>
-		<menu_item_call label="Patalania X" name="Firestorm Twitter"/>
-		<menu_item_call label="Firestorm Plurk" name="Firestorm Plurk"/>
 		<!-- added Mar.15, 2015 -->
 		<menu_item_call label="本日のメッセージ" name="Firestorm MoTD"/>
 		<!-- added Mar.15, 2015 -->
 	</menu>
 	<menu label="ヘルプ" name="Help">
 		<menu_item_check label="ヒントを有効にする" name="Enable Hints"/>
-		<menu_item_call label="Firestorm Wiki" name="Firestorm Wiki"/>
+		<menu_item_call label="Patalania Help" name="Firestorm Wiki"/>
 		<menu_item_call label="問題の解決" name="Troubleshooting"/>
-		<menu_item_call label="Patalaniaサポートグループに参加" name="firestorm_support_group"/>
-		<menu_item_call label="Patalania勉強会スケジュール" name="Firestorm Classes Schedule"/>
-		<menu_item_call label="Patalaniaイベントカレンダー" name="Firestorm Events Calendar"/>
 		<menu_item_call label="ガイドブック" name="How To"/>
 		<menu_item_call label="[CURRENT_GRID]ヘルプ" name="current_grid_help"/>
 		<menu_item_call label="[CURRENT_GRID]について" name="current_grid_about"/>

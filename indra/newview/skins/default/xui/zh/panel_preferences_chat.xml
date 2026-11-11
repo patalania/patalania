@@ -224,7 +224,7 @@
 		</panel>
 		<panel label="指令" name="tab-CmdLine">
 			<text name="FSCmdLineDoc_txt">
-				[https://wiki.firestormviewer.org/preferences_chat_tab#cmdline_tab 文件]
+				[https://github.com/patalania/patalania/blob/main/docs/HELP.md 文件]
 			</text>
 			<check_box label="使用聊天欄傳送指令行" name="chat_cmd_toggle" />.
 			<text name="FSCmdLineCalc_txt">計算表達式（例如：cmd SIN(2+2)）</text>

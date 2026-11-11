@@ -193,7 +193,7 @@ No tutorial is currently available.
    icon="alertmodal.tga"
    name="BadInstallation"
    type="alertmodal">
- Installation of [APP_NAME] is defective. Please [https://www.firestormviewer.org/downloads download a new copy] of the Viewer and reinstall.
+ Installation of [APP_NAME] is defective. Please [https://github.com/patalania/patalania/releases download a new copy] of the Viewer and reinstall.
     <tag>fail</tag>
     <usetemplate
      name="okbutton"
@@ -1923,7 +1923,7 @@ Visit [_URL] for more information?
     <tag>confirm</tag>
     <url option="0" name="url">
 
-			https://wiki.firestormviewer.org/fs_system_requirements
+			https://github.com/patalania/patalania/blob/main/docs/HELP.md
     </url>
     <usetemplate
      ignoretext="My computer hardware is not supported"
@@ -4055,7 +4055,7 @@ We&apos;re having trouble connecting. There may be a problem with your Internet 
 You can either check your Internet connection and try again in a few minutes, click Help to view the [SUPPORT_SITE], or click Teleport to attempt to teleport home.
     <url option="1" name="url">
 
-			https://www.firestormviewer.org/support/
+			https://github.com/patalania/patalania/blob/main/SUPPORT.md
     </url>
     <form name="form">
       <button
@@ -4083,7 +4083,7 @@ We&apos;re having trouble connecting. There may be a problem with your Internet 
 
 You can either check your Internet connection and try again in a few minutes or click Help to view the [SUPPORT_SITE].
     <url option="1" name="url">
-			https://www.firestormviewer.org/support/
+			https://github.com/patalania/patalania/blob/main/SUPPORT.md
     </url>
     <form name="form">
       <button
@@ -10238,7 +10238,7 @@ Please check your network and firewall setup.
 Disable any SIP ALG feature in your router.
 
 Voice communications will not be available.
-https://wiki.firestormviewer.org/fs_voice
+https://github.com/patalania/patalania/blob/main/docs/HELP.md
     <tag>voice</tag>
   <tag>fail</tag>
     <usetemplate
@@ -10255,7 +10255,7 @@ We're having trouble connecting to your voice server.
 
 Voice communications will not be available.
 Please check your network and firewall setup.
-[https://wiki.firestormviewer.org/fs_voice]
+[https://github.com/patalania/patalania/blob/main/docs/HELP.md]
     <tag>voice</tag>
   <tag>fail</tag>
     <usetemplate
@@ -15021,7 +15021,7 @@ Some antivirus programs may mistakenly block parts of [APP_NAME], slowing down i
 
 For detailed instructions on how to whitelist [APP_NAME] - including a list of files and folders to exclude - please visit our guide:
 
-https://wiki.firestormviewer.org/antivirus_whitelisting
+https://github.com/patalania/patalania/blob/main/docs/HELP.md
   </notification>
 
   <!-- <FS:TJ> Detect and notify if the viewer is trying to run as admin on Windows -->
@@ -15033,7 +15033,7 @@ One or more viewer processes are currently running as administrator. This is kno
 
 Please ensure that all viewer processes are not set to run as administrator. For more information, please read here:
 
-https://wiki.firestormviewer.org/fs_media#one_or_more_viewer_processes_are_currently_running_as_administrator_error_message
+https://github.com/patalania/patalania/blob/main/docs/HELP.md
     <tag>fail</tag>
     <usetemplate
      ignoretext="Warn me when the viewer is running as administrator"

@@ -279,7 +279,7 @@
 		<!-- Chat: CmdLine -->
 		<panel label="コマンドライン" name="tab-CmdLine">
 			<text name="FSCmdLineDoc_txt">
-				[https://wiki.firestormviewer.org/preferences_chat_tab#cmdline_tab ドキュメント]
+				[https://github.com/patalania/patalania/blob/main/docs/HELP.md ドキュメント]
 			</text>
 			<check_box label="チャットバーをコマンドラインとして使用できるようにする" name="chat_cmd_toggle"/>
 			<!-- 計算機 -->

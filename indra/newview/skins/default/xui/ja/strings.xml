@@ -205,7 +205,7 @@ LibVLCのバージョン：[LIBVLC_VERSION]
 	<string name="AditiGridLabelShort">Aditi（ベータ）</string>
 	<string name="LoginFailedViewerNotPermitted">
 		お使いの古いビューアでは、[CURRENT_GRID]にアクセスできません。以下のページから新しいビューアをダウンロードしてください：
-https://www.firestormviewer.org/choose-your-platform/
+https://github.com/patalania/patalania/releases
 
 詳細については、ＦＡＱを参照してください：
 https://secondlife.com/viewer-access-faq
@@ -3224,7 +3224,7 @@ https://support.secondlife.com よりSecond Lifeのサポートまでお問い�
 クラッシュ報告を送信しますか？
 	</string>
 	<string name="MBFreezeDetected">
-		[APP_NAME]がフリーズしたようです。この問題が頻繁に発生する場合は、https://www.firestormviewer.org/support からサポートにお問い合わせください。
+		[APP_NAME]がフリーズしたようです。この問題が頻繁に発生する場合は、https://github.com/patalania/patalania/blob/main/SUPPORT.md からサポートにお問い合わせください。
 	</string>
 	<string name="MBAlert">
 		通知

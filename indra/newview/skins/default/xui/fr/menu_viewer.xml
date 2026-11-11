@@ -282,21 +282,12 @@
 		<menu_item_call label="Taux de change du L$" name="LindenXchange"/>
 		<menu_item_call label="Bibliothèque de scripts" name="Script Library"/>
 		<menu_item_call label="Communauté SL (blogs, forums, nouvelles)" name="SL Community Pages"/>
-		<menu_item_call label="Blog Patalania" name="Firestorm Blog"/>
-		<menu_item_call label="Primfeed Patalania" name="Firestorm Primfeed"/>
-		<menu_item_call label="Flickr Patalania" name="Firestorm Flickr"/>
-		<menu_item_call label="YouTube Patalania" name="Firestorm YouTube"/>
-		<menu_item_call label="Twitter Patalania" name="Firestorm Twitter"/>
-		<menu_item_call label="Plurk Patalania" name="Firestorm Plurk"/>
 		<menu_item_call label="Message du jour" name="Firestorm MoTD"/>
 	</menu>
 	<menu label="Aide" name="Help">
 		<menu_item_check label="Affficher les conseils" name="Enable Hints"/>
-		<menu_item_call label="Wiki Firestorm" name="Firestorm Wiki"/>
+		<menu_item_call label="Patalania Help" name="Firestorm Wiki"/>
 		<menu_item_call label="Dépannage" name="Troubleshooting"/>
-		<menu_item_call label="Rejoindre un groupe d'aide Patalania" name="firestorm_support_group"/>
-		<menu_item_call label="Horaires des classes Patalania" name="Firestorm Classes Schedule"/>
-		<menu_item_call label="Calendrier des évènements Patalania" name="Firestorm Events Calendar"/>
 		<menu_item_check label="Guide" name="How To"/>
 		<!-- <menu_item_call label="Aide Second Life" name="Second Life Help"/>-->
 		<menu_item_call label="Aide [CURRENT_GRID]" name="current_grid_help"/>

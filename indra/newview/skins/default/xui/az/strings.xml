@@ -216,7 +216,7 @@ Səs serveri versiyası: [VOICE_VERSION]
 		Çıxış
 	</string>
 	<string name="create_account_url">
-		https://www.firestormviewer.org/join-secondlife/
+		https://join.secondlife.com/
 	</string>
 	<string name="AgniGridLabel">
 		Second Life Əsas Şəbəkəsi (Agni)
@@ -226,7 +226,7 @@ Səs serveri versiyası: [VOICE_VERSION]
 	</string>
 	<string name="LoginFailedViewerNotPermitted">
 		İstifadə etdiyiniz klientin artıq Second Life oyununa girişi yoxdur. Siz müştərinin yeni versiyasını bu ünvandan yükləyə bilərsiniz:
-https://www.firestormviewer.org/choose-your-platform/
+https://github.com/patalania/patalania/releases
 
 Ətraflı məlumat üçün FAQ bölməsinə baxın:
 http://secondlife.com/viewer-access-faq

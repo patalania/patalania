@@ -4,7 +4,7 @@
 Para minimizar esse impacto e melhorar a estabilidade e o desempenho, recomendamos fortemente que todos os usuários configurem exceções (também conhecidas como lista de permissões) para pastas e programas importantes usados pelo viewer.
 
 Mais detalhes em:
-https://wiki.firestormviewer.org/antivirus_whitelisting
+https://github.com/patalania/patalania/blob/main/docs/HELP.md
 	</text>
 	<text name="whitelist_folder_instruction">
 		A caixa de texto abaixo mostra as pastas usadas pelo viewer.

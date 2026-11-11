@@ -2613,54 +2613,6 @@
              parameter="WebLaunchExternalTarget,https://community.secondlife.com" />
        </menu_item_call>
        <menu_item_separator/>
-    	<menu_item_call
-             label="Firestorm Blog"
-             name="Firestorm Blog">
-             <menu_item_call.on_click
-             function="PromptShowURL"
-             name="firestorm_blog_url"
-             parameter="WebLaunchExternalTarget,https://www.firestormviewer.org/" />
-       </menu_item_call>
-    	<menu_item_call
-             label="Firestorm Primfeed"
-             name="Firestorm Primfeed">
-             <menu_item_call.on_click
-             function="PromptShowURL"
-             name="firestorm_primfeed_url"
-             parameter="WebLaunchExternalTarget,https://www.primfeed.com/firestorm-viewer" />
-       </menu_item_call>
-    	<menu_item_call
-             label="Firestorm Flickr"
-             name="Firestorm Flickr">
-             <menu_item_call.on_click
-             function="PromptShowURL"
-             name="firestorm_flickr_url"
-             parameter="WebLaunchExternalTarget,http://www.flickr.com/groups/firestormviewer/pool/" />
-       </menu_item_call>
-    	<menu_item_call
-             label="Firestorm YouTube"
-             name="Firestorm YouTube">
-             <menu_item_call.on_click
-             function="PromptShowURL"
-             name="firestorm_youtube_url"
-             parameter="WebLaunchExternalTarget,http://www.youtube.com/user/PhoenixViewerSL" />
-       </menu_item_call>
-    	<menu_item_call
-             label="Firestorm Twitter"
-             name="Firestorm Twitter">
-             <menu_item_call.on_click
-             function="PromptShowURL"
-             name="firestorm_twitter_url"
-             parameter="WebLaunchExternalTarget,https://twitter.com/phoenixviewersl" />
-       </menu_item_call>
-    	<menu_item_call
-             label="Firestorm Plurk"
-             name="Firestorm Plurk">
-             <menu_item_call.on_click
-             function="PromptShowURL"
-             name="firestorm_plurk_url"
-             parameter="WebLaunchExternalTarget,http://www.plurk.com/ThePhoenixViewerProject" />
-       </menu_item_call>
        <menu_item_separator/>
        <menu_item_call
              label="Message of the day"
@@ -2690,13 +2642,13 @@
         </menu_item_check>
         
         <menu_item_call
-         label="Firestorm Wiki"
+         label="Patalania Help"
          name="Firestorm Wiki"
 	     shortcut="F1">
              <menu_item_call.on_click
              function="PromptShowURL"
              name="script_library_url"
-             parameter="WebLaunchExternalTarget,https://wiki.firestormviewer.org" />
+             parameter="WebLaunchExternalTarget,https://github.com/patalania/patalania/blob/main/docs/HELP.md" />
         </menu_item_call>
         
         <menu_item_call
@@ -2705,37 +2657,11 @@
             <menu_item_call.on_click
              function="PromptShowURL"
              name="wiki_troubleshooting_url"
-             parameter="WebLaunchExternalTarget,https://wiki.firestormviewer.org/firestorm_troubleshooting" />
+             parameter="WebLaunchExternalTarget,https://github.com/patalania/patalania/blob/main/docs/HELP.md" />
         </menu_item_call>
 	   
-        <menu_item_call
-         label="Join Firestorm Support Group"
-         name="firestorm_support_group">
-            <menu_item_call.on_click
-             function="Advanced.WebBrowserTest"
-             parameter="https://wiki.firestormviewer.org/firestorm_support_groups_join" />
-            <menu_item_call.on_visible
-             function="GridCheck"
-             parameter="secondlife" />
-        </menu_item_call>
 
-        <menu_item_call
-         label="Firestorm Classes Schedule"
-         name="Firestorm Classes Schedule">
-             <menu_item_call.on_click
-             function="PromptShowURL"
-             name="wiki_classes_url"
-             parameter="WebLaunchExternalTarget,https://wiki.firestormviewer.org/firestorm_classes" />
-        </menu_item_call>
 
-        <menu_item_call
-         label="Firestorm Events Calendar"
-         name="Firestorm Events Calendar">
-             <menu_item_call.on_click
-             function="PromptShowURL"
-             name="events_calendar_url"
-             parameter="WebLaunchExternalTarget,https://teamup.com/ksxdajnbw9mvw7cbwz" />
-        </menu_item_call>
 
         <menu_item_check
          label="Guidebook"

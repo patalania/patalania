@@ -82,7 +82,7 @@ Detalhes do erro: a notificação chamada &apos;[_NAME]&apos; não foi encontrad
 		<usetemplate name="okbutton" yestext="OK"/>
 	</notification>
 	<notification name="BadInstallation">
-		A instalação de [APP_NAME] está com defeito. Por favor [https://www.firestormviewer.org/downloads baixe uma nova cópia do viewer] e reinstale.
+		A instalação de [APP_NAME] está com defeito. Por favor [https://github.com/patalania/patalania/releases baixe uma nova cópia do viewer] e reinstale.
 		<usetemplate name="okbutton" yestext="OK"/>
 	</notification>
 	<notification name="LoginFailedNoNetwork">
@@ -738,7 +738,7 @@ O objeto pode estar fora do alcance ou excluído.
 
 Para obter mais informações, visite [_URL].
 		<url name="url" option="0">
-			https://wiki.firestormviewer.org/fs_system_requirements
+			https://github.com/patalania/patalania/blob/main/docs/HELP.md
 		</url>
 		<usetemplate ignoretext="Meu hardware não é compatível" name="okcancelignore" notext="Não" yestext="Sim"/>
 	</notification>
@@ -1589,7 +1589,7 @@ Se esta for a primeira vez que você usa [CURRENT_GRID], você deve primeiro cri
 
 Verifique sua conexão com a Internet e tente novamente ou clique em Ajuda para ir para [SUPPORT_SITE] ou clique em Teletransportar para se teletransportar para casa.
 		<url name="url">
-			https://www.firestormviewer.org/support/
+			https://github.com/patalania/patalania/blob/main/SUPPORT.md
 		</url>
 		<form name="form">
 			<button name="OK" text="OK"/>
@@ -1602,7 +1602,7 @@ Verifique sua conexão com a Internet e tente novamente ou clique em Ajuda para 
 
 Verifique sua conexão com a Internet e tente novamente ou clique em Ajuda para acessar [SUPPORT_SITE].
 		<url name="url">
-			https://www.firestormviewer.org/support/
+			https://github.com/patalania/patalania/blob/main/SUPPORT.md
 		</url>
 		<form name="form">
 			<button name="OK" text="OK"/>
@@ -3916,7 +3916,7 @@ Verifique a configuração da sua rede e firewall.
 Desative todos os recursos SIP ALG em seu roteador. 
 
 Infelizmente, a comunicação por voz não está disponível.
-https://wiki.firestormviewer.org/fs_voice
+https://github.com/patalania/patalania/blob/main/docs/HELP.md
 		<usetemplate name="okignore" yestext="OK" ignoretext="Avisar quando não for possível estabelecer uma conexão com o servidor de voz."/>
 	</notification>
 	<notification name="NoVoiceConnect-GIAB">
@@ -3924,7 +3924,7 @@ https://wiki.firestormviewer.org/fs_voice
 
 Infelizmente, a comunicação por voz não está disponível.
 Verifique a configuração da sua rede e firewall.
-[https://wiki.firestormviewer.org/fs_voice]
+[https://github.com/patalania/patalania/blob/main/docs/HELP.md]
 		<usetemplate name="okignore" yestext="OK"/>
 	</notification>
 	<notification name="AvatarRezLeftNotification">
@@ -5940,14 +5940,14 @@ Alguns programas antivírus podem bloquear incorretamente partes de [APP_NAME], 
 
 Instruções detalhadas para colocar [APP_NAME] na lista de permissões - incluindo uma lista de arquivos e diretórios - podem ser encontradas em nosso guia:
 
-https://wiki.firestormviewer.org/antivirus_whitelisting
+https://github.com/patalania/patalania/blob/main/docs/HELP.md
 	</notification>
 	<notification name="ViewerProcessRunningAsAdmin">
 		Um ou mais processos do viewer estão sendo executados como administrador. Isso costuma causar diversos problemas e impedir que mídias e páginas web funcionem dentro do viewer.
 
 Certifique-se de que nenhum processo do viewer esteja configurado para ser executado como administrador. Para mais informações, leia aqui:
 
-https://wiki.firestormviewer.org/fs_media#one_or_more_viewer_processes_are_currently_running_as_administrator_error_message
+https://github.com/patalania/patalania/blob/main/docs/HELP.md
 		<usetemplate ignoretext="Avisar quando o viewer estiver sendo executado como administrador" name="okignore" yestext="OK"/>
 	</notification>
 	<notification name="ConfirmPoserOverwrite">

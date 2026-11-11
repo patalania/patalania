@@ -2124,7 +2124,7 @@
 	  right="-10"
 	  name="FSCmdLineDoc_txt"
 	  width="150">
-	  [https://wiki.firestormviewer.org/preferences_chat_tab#cmdline_tab Documentation]
+	  [https://github.com/patalania/patalania/blob/main/docs/HELP.md Documentation]
 	</text>
 	<check_box
 	  top="10"

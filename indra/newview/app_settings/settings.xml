@@ -145,13 +145,13 @@
   <key>GridListDownload</key>
   <map>
     <key>Comment</key>
-    <string>Whether to fetch a grid list from the URL specified in GridListDownloadURL.</string>
+    <string>Whether to fetch a grid list from the URL specified in GridListDownloadURL. (Patalania: off, there is no grid list server.)</string>
     <key>Persist</key>
     <integer>1</integer>
     <key>Type</key>
     <string>Boolean</string>
     <key>Value</key>
-    <integer>1</integer>
+    <integer>0</integer>
   </map>
   <key>GridListDownloadURL</key>
   <map>
@@ -162,7 +162,7 @@
     <key>Type</key>
     <string>String</string>
     <key>Value</key>
-    <string>http://phoenixviewer.com/app/fsdata/grids.xml</string>
+    <string></string>
   </map>
   <key>FSPrimfeedViewerApiKey</key>
   <map>
@@ -184,7 +184,7 @@
     <key>Type</key>
     <string>String</string>
     <key>Value</key>
-    <string>https://phoenixviewer.com/app/fsdata/fs_grid_builder.html</string>
+    <string>https://github.com/patalania/patalania/blob/main/docs/HELP.md</string>
   </map>
   <key>LastConnectedGrid</key>
   <map>
@@ -6098,7 +6098,7 @@
       <key>Type</key>
       <string>String</string>
       <key>Value</key>
-      <string>https://wiki.firestormviewer.org/[TOPIC]</string>
+      <string>https://github.com/patalania/patalania/blob/main/docs/HELP.md</string>
       <key>Backup</key>
       <integer>0</integer>
     </map>
@@ -6111,7 +6111,7 @@
       <key>Type</key>
       <string>String</string>
       <key>Value</key>
-      <string>https://wiki.firestormviewer.org/start#basic_functions</string>
+      <string>https://github.com/patalania/patalania/blob/main/docs/HELP.md</string>
       <key>Backup</key>
       <integer>0</integer>
     </map>    
@@ -13967,7 +13967,7 @@ Change of this parameter will affect the layout of buttons in notification toast
 			<key>Type</key>
 			<string>String</string>
 			<key>Value</key>
-			<string>https://phoenixviewer.com/app/file-a-jira/?environment=[ENVIRONMENT]</string>
+			<string>https://github.com/patalania/patalania/issues</string>
 		</map>
 	<key>RevokePermsOnStopAnimation</key>
     <map>
@@ -25213,7 +25213,7 @@ Change of this parameter will affect the layout of buttons in notification toast
       <key>Type</key>
       <string>String</string>
       <key>Value</key>
-      <string>https://phoenixviewer.com/app/loginV3/secondlifegrid.xml</string>
+      <string></string>
     </map>
     <key>FSIgnoreAdHocSessions</key>
     <map>
