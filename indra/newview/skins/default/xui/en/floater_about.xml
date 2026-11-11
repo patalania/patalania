@@ -26,21 +26,22 @@
       <text
         follows="top|left|right"
         font="SansSerif"
-        height="30"
+        height="85"
         layout="topleft"
         left="11"
         name="support_intro"
         top="16"
         width="434"
         wrap="true">
-Patalania is based on the Firestorm viewer and the Second Life viewer by Linden Lab.
-Source code: https://github.com/patalania/patalania
+Patalania is based on the Firestorm viewer (The Phoenix Firestorm Project, Inc.) and the Second Life viewer by Linden Lab.
+This software is not provided or supported by Linden Lab, the makers of Second Life. Second Life is a trademark of Linden Research, Inc.; Patalania is not affiliated with or sponsored by Linden Research or the Firestorm project.
+Source code, privacy and support: https://github.com/patalania/patalania
       </text>
       <text_editor
         parse_urls="true"
         follows="top|left"
         font="SansSerif"
-        height="468"
+        height="413"
         bg_readonly_color="Transparent"
         left="5"
         max_length="65536"

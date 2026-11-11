@@ -3486,6 +3486,46 @@ bool idle_startup()
 // local function definition
 //
 
+static LLSD pat_disclaimer_args()
+{
+    LLSD args;
+    args["VERSION"] = LLVersionInfo::instance().getVersion();
+    args["FS_VERSION"] = LLVersionInfo::instance().getShortVersion(); // Patalania uses the Firestorm version numbers (major.minor.patch)
+    return args;
+}
+
+static bool pat_disclaimer_callback(const LLSD& notification, const LLSD& response);
+
+// <PAT:Phase4> Third-party viewer notice before the first login (Linden Lab TPV policy, FAQ 9.2)
+static bool pat_disclaimer_callback(const LLSD& notification, const LLSD& response)
+{
+    S32 option = LLNotificationsUtil::getSelectedOption(notification, response);
+    if (option == 0)
+    {
+        gSavedSettings.setBOOL("PATDisclaimerAccepted", true);
+    }
+    else if (option == 1)
+    {
+        LLWeb::loadURLExternal("https://github.com/patalania/patalania/blob/main/PRIVACY.md");
+        LLWeb::loadURLExternal("https://github.com/patalania/patalania/blob/main/SUPPORT.md");
+        LLNotificationsUtil::add("PatDisclaimer", pat_disclaimer_args(), LLSD(), pat_disclaimer_callback);
+    }
+    else
+    {
+        LLAppViewer::instance()->forceQuit();
+    }
+    return false;
+}
+
+static void pat_show_disclaimer()
+{
+    if (!gSavedSettings.getBOOL("PATDisclaimerAccepted"))
+    {
+        LLNotificationsUtil::add("PatDisclaimer", pat_disclaimer_args(), LLSD(), pat_disclaimer_callback);
+    }
+}
+// </PAT>
+
 void login_show()
 {
     LL_INFOS("AppInit") << "Initializing Login Screen" << LL_ENDL;
@@ -3511,6 +3551,7 @@ void login_show()
 #endif
     // </PAT>
     // </FS:PP>
+    pat_show_disclaimer(); // <PAT:Phase4/>
 }
 
 // Callback for when login screen is closed.  Option 0 = connect, option 1 = quit.

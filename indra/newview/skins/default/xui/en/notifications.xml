@@ -1629,6 +1629,42 @@ Go to the [CURRENT_GRID] events web page?
      yestext="OK"/>
   </notification>
 
+  <!-- <PAT:Phase4> Third-party viewer notice shown before the first login (Linden Lab TPV policy) -->
+  <notification
+   icon="alertmodal.tga"
+   name="PatDisclaimer"
+   type="alertmodal"
+   unique="true">
+Welcome to [APP_NAME] [VERSION] (based on Firestorm [FS_VERSION]).
+
+This software is not provided or supported by Linden Lab, the makers of Second Life.
+
+Second Life is a trademark of Linden Research, Inc. [APP_NAME] is not affiliated with or sponsored by Linden Research or The Phoenix Firestorm Project, Inc.
+
+Support: none. This software is provided as-is; bug reports via GitHub issues are welcome (no guarantee of a response or fix).
+Privacy: no telemetry and no crash upload; only the grid you log in to is contacted, plus the usage statistics Linden Lab requires.
+Known limitations: no FMOD audio (OpenAL), slower texture decoding (OpenJPEG), no Havok physics tools, Linux only.
+
+https://github.com/patalania/patalania
+    <tag>confirm</tag>
+    <form name="form">
+      <button
+       default="true"
+       index="0"
+       name="Accept"
+       text="I understand"/>
+      <button
+       index="1"
+       name="Privacy"
+       text="Privacy and support"/>
+      <button
+       index="2"
+       name="Quit"
+       text="Quit"/>
+    </form>
+  </notification>
+  <!-- </PAT> -->
+
   <notification
    icon="alertmodal.tga"
    name="SelectProposalToView"
