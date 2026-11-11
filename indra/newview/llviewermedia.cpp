@@ -418,6 +418,12 @@ std::string LLViewerMedia::getCurrentUserAgent()
     // Don't use user-visible string to avoid
     // punctuation and strange characters.
     std::string skin_name = gSavedSettings.getString("SkinCurrent");
+    // <PAT:Phase3> the internal skin folder is still called "firestorm"; do not send that name out
+    if (skin_name == "firestorm")
+    {
+        skin_name = "patalania";
+    }
+    // </PAT>
 
     // Just in case we need to check browser differences in A/B test
     // builds.

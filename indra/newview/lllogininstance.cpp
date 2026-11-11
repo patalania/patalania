@@ -239,6 +239,11 @@ void LLLoginInstance::constructAuthParams(LLPointer<LLCredential> user_credentia
     request_params["id0"] = mSerialNumber;
     request_params["host_id"] = gSavedSettings.getString("HostID");
     request_params["extended_errors"] = true; // request message_id and message_args
+    // <PAT:Phase3> log what identifies the viewer towards the login server (evidence for "no Firestorm identity")
+    LL_INFOS("LLLogin") << "PAT login identity: channel=" << LLVersionInfo::instance().getChannel()
+                        << " version=" << LLVersionInfo::instance().getVersion()
+                        << " platform=" << mPlatform << " platform_string=" << mPlatformVersionName << LL_ENDL;
+    // </PAT>
     request_params["token"] = "";
 
     // log request_params _before_ adding the credentials or sensitive MFA hash data

@@ -16,8 +16,7 @@
     text-align: center;
   }
   .logo { width: 128px; height: 128px; }
-  h1 { font-size: 36px; font-weight: 600; margin: 18px 0 6px 0; letter-spacing: 1px; }
-  .sub { color: #aab2bf; font-size: 14px; margin: 0 0 22px 0; }
+  h1 { font-size: 36px; font-weight: 600; margin: 18px 0 14px 0; letter-spacing: 1px; }
   .ver { color: #8a93a1; font-size: 13px; }
 </style>
 </head>
@@ -61,7 +60,6 @@
 </svg>
 
 <h1>Patalania</h1>
-<p class="sub" id="sub">A viewer for the Second Life&reg; world and OpenSim</p>
 <div class="ver" id="ver"></div>
 </div>
 <script>
@@ -72,9 +70,6 @@
     var p = kv.split("=");
     try { q[decodeURIComponent(p[0])] = decodeURIComponent((p[1] || "").replace(/\+/g, " ")); } catch (e) {}
   });
-  if ((q.lang || "").toLowerCase().indexOf("de") === 0) {
-    document.getElementById("sub").textContent = "Ein Viewer f\u00fcr die Second Life\u00ae-Welt und OpenSim";
-  }
   var v = [];
   if (q.version) v.push("Version " + q.version);
   if (q.channel) v.push(q.channel);

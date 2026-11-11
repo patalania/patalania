@@ -36,7 +36,10 @@
 class FSLSLBridgeRequestResponder;
 
 const std::string LIB_ROCK_NAME = "Rock - medium, round";
-const std::string FS_BRIDGE_NAME = "#Firestorm LSL Bridge v";
+// <PAT:Phase3> Renamed from "#Firestorm LSL Bridge v" so a Firestorm bridge of the same account is never touched.
+// Script, channel and protocol are unchanged.
+const std::string FS_BRIDGE_NAME = "#Patalania LSL Bridge v";
+// </PAT>
 const U8 FS_BRIDGE_POINT = 31;
 const std::string FS_BRIDGE_ATTACHMENT_POINT_NAME = "Center 2";
 
