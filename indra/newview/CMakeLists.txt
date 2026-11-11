@@ -945,7 +945,7 @@ else (OPENSIM)
         )
 endif (OPENSIM)
 
-set(VIEWER_BINARY_NAME "firestorm-bin" CACHE STRING
+set(VIEWER_BINARY_NAME "patalania-bin" CACHE STRING # <PAT:Rebrand/>
     "The name of the viewer executable to create.")
 
 set(viewer_HEADER_FILES

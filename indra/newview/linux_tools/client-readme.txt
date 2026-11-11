@@ -1,7 +1,7 @@
-Firestorm - Linux Beta README
+Patalania - Linux Beta README
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-This document contains information about the Firestorm Linux
+This document contains information about the Patalania Linux
 client
 
 1. Introduction
@@ -25,7 +25,7 @@ client
 1. INTRODUCTION
 -=-=-=-=-=-=-=-
 
-Hi!  This is a BETA release of the Firestorm client for Linux.
+Hi!  This is a BETA release of the Patalania client for Linux.
 The 'beta' status means that although we're still smoothing-out a few rough
 edges, this version of the client is functionally complete and should
 work quite well 'out of the box'.
@@ -59,10 +59,10 @@ Minimum requirements:
           o OR ATI Radeon 8500, 9250, or better
           (nVidia cards are recommended for the Linux client)
 
-      **NOTE**: Firestorm absolutely requires you to have recent, correctly-
+      **NOTE**: Patalania absolutely requires you to have recent, correctly-
       configured OpenGL 3D drivers for your hardware - the graphics drivers
       that came with your operating system may not be good enough!  See the
-      TROUBLESHOOTING section if you encounter problems starting Firestorm.
+      TROUBLESHOOTING section if you encounter problems starting Patalania.
 
 For a more comfortable experience, the RECOMMENDED hardware for the Second
 Life Linux client is very similar to that for Windows, as detailed at:
@@ -72,11 +72,11 @@ Life Linux client is very similar to that for Windows, as detailed at:
 3. INSTALLING & RUNNING
 -=-=-=-=-=-=-=-=-=-=-=-
 
-The Firestorm Linux client can entirely run from the directory you have
+The Patalania Linux client can entirely run from the directory you have
 unpacked it into - no installation step is required.  If you wish to
 perform a separate installation step anyway, you may run './install.sh'
 
-Run './firestorm' from the installation directory to start Firestorm.
+Run './patalania' from the installation directory to start Patalania.
 
 For in-world MOVIE and MUSIC PLAYBACK, you will need (32-bit) GStreamer 0.10
 installed on your system.  This is optional - it is not required for general
@@ -86,8 +86,8 @@ plugins you have; if you cannot play a certain in-world movie then you are
 probably missing the appropriate GStreamer plugin on your system - you may
 be able to install it (see TROUBLESHOOTING).
 
-User data is stored in the hidden directory ~/.firestorm by default; you may
-override this location with the FIRESTORM_USER_DIR, or FIRESTORM_X64_USER_DIR
+User data is stored in the hidden directory ~/.patalania by default; you may
+override this location with the PATALANIA_USER_DIR, or PATALANIA_X64_USER_DIR
 if using the 64 bit version, environment variable if you wish.
 
 
@@ -101,7 +101,7 @@ if using the 64 bit version, environment variable if you wish.
 -=-=-=-=-=-=-=-=-=
 
 The client prints a lot of diagnostic information to the console it was
-run from.  Most of this is also replicated in ~/.firestorm/logs/Firestorm.log
+run from.  Most of this is also replicated in ~/.patalania/logs/Patalania.log
 - this is helpful to read when troubleshooting, especially 'WARNING' and
 'ERROR' lines.
 
@@ -111,7 +111,7 @@ VOICE PROBLEMS?  See the separate README-linux-voice.txt file for Voice
 SPACENAVIGATOR OR JOYSTICK PROBLEMS?  See the separate
   README-linux-joystick.txt file for configuration information.
 
-PROBLEM 1:- Firestorm fails to start up, with a warning on the console like:
+PROBLEM 1:- Patalania fails to start up, with a warning on the console like:
    'Error creating window.' or
    'Unable to create window, be sure screen is set at 32-bit color' or
    'SDL: Couldn't find matching GLX visual.'
@@ -128,21 +128,21 @@ SOLUTION:- Usually this indicates that your graphics card does not meet
    required Linux drivers straight from your graphics card manufacturer:
    - <https://wiki.firestormviewer.org/downloads#video_drivers>
 
-PROBLEM 2:- My whole system seems to hang when running Firestorm.
+PROBLEM 2:- My whole system seems to hang when running Patalania.
 SOLUTION:- This is typically a hardware/driver issue.  The first thing to
    do is to check that you have the most recent official drivers for your
    graphics card (see PROBLEM 1).
 SOLUTION:- Some residents with ATI cards have reported that running
-   'sudo aticonfig --locked-userpages=off' before running Firestorm solves
+   'sudo aticonfig --locked-userpages=off' before running Patalania solves
    their stability issues.
-SOLUTION:- As a last resort, you can disable most of Firestorm's advanced
-   graphics features by editing the 'firestorm' script and removing the '#'
+SOLUTION:- As a last resort, you can disable most of Patalania's advanced
+   graphics features by editing the 'patalania' script and removing the '#'
    from the line which reads '#export LL_GL_NOEXT=x'
 
-PROBLEM 3:- After I minimize the Firestorm window, it's just blank when
+PROBLEM 3:- After I minimize the Patalania window, it's just blank when
    it comes back.
 SOLUTION:- Some Linux desktop 'Visual Effects' features are incompatible
-   with Firestorm.  One reported solution is to use your desktop
+   with Patalania.  One reported solution is to use your desktop
    configuration program to disable such effects.  For example, on Ubuntu 7.10,
    use the desktop toolbar menu to select System -> Preferences -> Appearance,
    then change 'Visual Effects' to 'None'.
@@ -150,17 +150,17 @@ SOLUTION:- Some Linux desktop 'Visual Effects' features are incompatible
 PROBLEM 4:- Music and sound effects are silent or very stuttery.
 SOLUTION:- The most common solution is to ensure that you have the 'esd'
    program (part of the 'esound' package) installed and running before you
-   start Firestorm.  Users of Ubuntu (and some other) Linux systems can
+   start Patalania.  Users of Ubuntu (and some other) Linux systems can
    simply run the following to install and configure 'esound':
      sudo apt-get install esound
   For others, simply running 'esd&' from a command-line should get it running.
 
 PROBLEM 5:- Using the 'Alt' key to control the camera doesn't work or just
-   moves the Firestorm window.
+   moves the Patalania window.
 SOLUTION:- Some window managers eat the Alt key for their own purposes; you
    can configure your window manager to use a different key instead (for
    example, the 'Windows' key!) which will allow the Alt key to function
-   properly with mouse actions in Firestorm and other applications.
+   properly with mouse actions in Patalania and other applications.
 
 PROBLEM 6:- In-world movie, music, or Flash playback doesn't work for me.
 SOLUTION:- You need to have a working installation of GStreamer 0.10; this
@@ -170,18 +170,18 @@ SOLUTION:- You need to have a working installation of GStreamer 0.10; this
    from your vendor (i.e. the 'Ugly' plugins) or an appropriate third party.
    For Flash playback, you need to have Flash 10 installed for your normal
    web browser (for example, Firefox).  PulseAudio is required for Flash
-   volume control / muting to fully function inside Firestorm.
+   volume control / muting to fully function inside Patalania.
 
 
 6. ADVANCED TROUBLESHOOTING
 -=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-The 'firestorm' script which launches Firestorm contains some
+The 'patalania' script which launches Patalania contains some
 configuration options for advanced troubleshooters.
 
 * AUDIO - Edit the 'secondlife' script and you will see these audio
   options: LL_BAD_OPENAL_DRIVER, LL_BAD_FMODSTUDIO_DRIVER.
-  Firestorm tries to use OpenAL, FMODSTUDIO (PULSEAUDIO, ALSA)
+  Patalania tries to use OpenAL, FMODSTUDIO (PULSEAUDIO, ALSA)
   audio drivers in this order; you may uncomment the corresponding LL_BAD_*
   option to skip an audio driver which you believe may be causing you trouble.
 
@@ -199,21 +199,17 @@ configuration options for advanced troubleshooters.
 7. OBTAINING AND WORKING WITH THE CLIENT SOURCE CODE
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-We're pleased to have released Firestorm client's source code under
+We're pleased to have released Patalania client's source code under
 an Open Source license compatible with the 'LGPL'.
-<https://wiki.firestormviewer.org/downloads#source_code>
+<https://github.com/patalania/patalania>
+Patalania is based on the Firestorm viewer (https://www.firestormviewer.org).
 
 
 8. GETTING MORE HELP AND REPORTING PROBLEMS
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-For general help and support with Firestorm:
-<http://wiki.firestormviewer.org>
-
-In-world discussion: 
-
-Main support: Join one of our in-world support groups.
-<http://wiki.firestormviewer.org/firestorm_in-world_groups>
+For general help and support with Patalania:
+<https://github.com/patalania/patalania/issues>
 
 There is also a 'Linux Client Users' group inside Second Life which 
 is free to join.  You can find it by pressing the 'Search' button at 
@@ -221,9 +217,9 @@ the bottom of the window and then selecting the 'Groups' tab and
 searching for 'Linux'.  This group is useful for discussing Linux 
 issues with fellow Linux client users who are online.
 
-The Firestorm Issue Tracker:
-<https://jira.firestormviewer.org/>
+The Patalania Issue Tracker:
+<https://github.com/patalania/patalania/issues>
 This is the right place for finding known issues and reporting new
-bugs in all Firestorm releases if you find that the Troubleshooting
+bugs in all Patalania releases if you find that the Troubleshooting
 section in this file hasn't helped.
 

@@ -18,8 +18,10 @@ if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.31.0")
     cmake_policy(SET CMP0179 NEW)
 endif()
 
-set(ROOT_PROJECT_NAME "Firestorm" CACHE STRING
-    "The root project/makefile/solution name. Defaults to Firestorm.")
+# <PAT:Rebrand>
+set(ROOT_PROJECT_NAME "Patalania" CACHE STRING
+    "The root project/makefile/solution name. Defaults to Patalania.")
+# </PAT>
 project(${ROOT_PROJECT_NAME})
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake"  "${CMAKE_CURRENT_BINARY_DIR}")
@@ -211,10 +213,10 @@ else (USE_BUGSPLAT)
 endif (USE_BUGSPLAT)
 
 add_subdirectory(${VIEWER_PREFIX}newview)
-add_dependencies(viewer firestorm-bin)
+add_dependencies(viewer ${VIEWER_BINARY_NAME}) # <PAT:Rebrand/>
 
 set_target_properties(
-    firestorm-bin PROPERTIES
+    ${VIEWER_BINARY_NAME} PROPERTIES # <PAT:Rebrand/>
     VS_DEBUGGER_WORKING_DIRECTORY "..\\..\\indra\\newview")
 
 add_subdirectory(${VIEWER_PREFIX}doxygen EXCLUDE_FROM_ALL)

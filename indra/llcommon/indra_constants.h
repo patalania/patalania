@@ -32,7 +32,9 @@
 class LLUUID;
 
 // <FS:Ansariel> Centralize definition of application name
-const std::string APP_NAME = "Firestorm";
+// <PAT:Rebrand> Application name (also determines the user data directory, ~/.patalania_x64)
+const std::string APP_NAME = "Patalania";
+// </PAT>
 
 static constexpr F32 REGION_WIDTH_METERS = 256.f;
 static constexpr S32 REGION_WIDTH_UNITS = 256;

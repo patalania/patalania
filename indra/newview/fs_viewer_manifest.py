@@ -17,7 +17,7 @@ class FSViewerManifest:
             'app_name_oneword':self.app_name_oneword()
             }
 
-        return "Phoenix-%(app_name)s_%(optimized)s-%(version_dashes)s" % substitution_strings
+        return "%(app_name)s_%(optimized)s-%(version_dashes)s" # <PAT:Rebrand/>  % substitution_strings
 
     def fs_is_opensim(self):
         return self.args['viewer_flavor'] == 'oss' #Havok would be hvk
@@ -57,7 +57,7 @@ class FSViewerManifest:
         return "".join(self.fs_channel_unique().split())
 
     def fs_channel_unique(self):
-        return self.channel().replace("Firestorm", "").strip()
+        return self.channel().replace("Patalania", "").strip() # <PAT:Rebrand/>
 
     def fs_sign_win_binaries(self):
         signtool_path = os.getenv('SIGNTOOL_PATH')
@@ -65,7 +65,7 @@ class FSViewerManifest:
         metadata_file = os.getenv("CODESIGNING_METADATA_PATH")
         # at some point we might want to sign other DLLs as well.
         executable_paths = [
-            # self.args['configuration'] + "\\firestorm-bin.exe", # no need to sign this we are not packaging it.
+            # self.args['configuration'] + "\\patalania-bin.exe", # no need to sign this we are not packaging it.
             self.args['configuration'] + "\\slplugin.exe",
             self.args['configuration'] + "\\llwebrtc.dll",
             self.args['configuration'] + "\\llplugin\\dullahan_host.exe",
@@ -130,32 +130,32 @@ class FSViewerManifest:
         self.fs_save_symbols("linux")
 
     def fs_linux_tar_excludes(self):
-        installer_name_components = ['Phoenix',self.app_name(),self.args.get('arch'),'.'.join(self.args['version'])]
+        installer_name_components = [self.app_name(),self.args.get('arch'),'.'.join(self.args['version'])]
         installer_name = "_".join(installer_name_components)
         return "--exclude=%s/bin/.debug" % installer_name
 
     def fs_save_windows_symbols(self):
         self.fs_save_symbols("windows")
 
-        pdbName = "firestorm-bin.pdb"
+        pdbName = "patalania-bin.pdb"
         try:
             subprocess.check_call( [ "pdbcopy.exe" ,
-                                     self.args['configuration'] + "\\firestorm-bin.pdb", 
-                                     self.args['configuration'] + "\\firestorm-bin-public.pdb",
+                                     self.args['configuration'] + "\\patalania-bin.pdb", 
+                                     self.args['configuration'] + "\\patalania-bin-public.pdb",
                                      "-p"
                                  ], stderr=subprocess.PIPE,stdout=subprocess.PIPE )
-            pdbName = "firestorm-bin-public.pdb"
+            pdbName = "patalania-bin-public.pdb"
         except:
             print("Cannot run pdbcopy, packaging private symbols")
 
-        tarName = "%s/Phoenix_%s_%s_%s_pdbsymbols-windows-%d.tar.xz" % (self.args['configuration'].lower(),
+        tarName = "%s/Patalania_%s_%s_%s_pdbsymbols-windows-%d.tar.xz" % (self.args['configuration'].lower(),
                                                                         self.fs_channel_legacy_oneword(),
                                                                         '-'.join(self.args['version']),
                                                                         self.args['viewer_flavor'],
                                                                         self.address_size)                                      
         # Store windows symbols we want to keep for debugging in a tar file.
         symbolTar = tarfile.open( name=tarName, mode="w:xz")
-        symbolTar.add( "%s/Firestorm-bin.exe" % self.args['configuration'].lower(), "firestorm-bin.exe" )
+        symbolTar.add( "%s/patalania-bin.exe" % self.args['configuration'].lower(), "patalania-bin.exe" )
         symbolTar.add( "%s/build_data.json" % self.args['configuration'].lower(), "build_data.json" )
         symbolTar.add( "%s/%s" % (self.args['configuration'].lower(),pdbName), pdbName )
         symbolTar.close()
@@ -186,11 +186,11 @@ class FSViewerManifest:
         self.fs_save_symbols("darwin")
 
     def fs_save_symbols(self, osname):
-        if (os.path.exists("%s/firestorm-symbols-%s-%d.tar.bz2" % (self.args['configuration'].lower(),
+        if (os.path.exists("%s/patalania-symbols-%s-%d.tar.bz2" % (self.args['configuration'].lower(),
                                                                        osname,
                                                                        self.address_size))):
             # Rename to add version numbers
-            sName = "%s/Phoenix_%s_%s_%s_symbols-%s-%d.tar.bz2" % (self.args['configuration'].lower(),
+            sName = "%s/Patalania_%s_%s_%s_symbols-%s-%d.tar.bz2" % (self.args['configuration'].lower(),
                                                                        self.fs_channel_legacy_oneword(),
                                                                        '-'.join( self.args['version'] ),
                                                                        self.args['viewer_flavor'],
@@ -200,7 +200,7 @@ class FSViewerManifest:
             if os.path.exists( sName ):
                 os.unlink( sName )
 
-            os.rename("%s/firestorm-symbols-%s-%d.tar.bz2" % (self.args['configuration'].lower(), osname, self.address_size), sName)
+            os.rename("%s/patalania-symbols-%s-%d.tar.bz2" % (self.args['configuration'].lower(), osname, self.address_size), sName)
 
     def fs_generate_breakpad_symbols_for_file( self, aFile ):
         from os import makedirs, remove
@@ -238,7 +238,7 @@ class FSViewerManifest:
         from shutil import rmtree
         import tarfile
 
-        components = ['Phoenix',self.app_name(),self.args.get('arch'),'.'.join(self.args['version'])]
+        components = [self.app_name(),self.args.get('arch'),'.'.join(self.args['version'])]
         symbolsName = "_".join(components)
         symbolsName = symbolsName + "_" + self.args["viewer_flavor"] + "-" + osname + "-" + str(self.address_size) + ".tar.bz2"
 
