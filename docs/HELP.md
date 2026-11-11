@@ -19,7 +19,7 @@ Open the grid selector at the login screen, choose **Grid Manager**, and add the
 
 ## VR mode (in development)
 
-Requires Linux, an OpenXR runtime (e.g. WiVRn) and a headset. Controls are keyboard and mouse only. VR settings will be documented here with the first VR release.
+Requires an OpenXR runtime with OpenGL support (tested: WiVRn on Linux) and a headset. Controls are keyboard and mouse only. VR settings will be documented here with the first VR release.
 
 ## Voice
 

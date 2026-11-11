@@ -11,8 +11,8 @@ Patalania differs from the official Second Life viewer and from Firestorm in the
 
 ## Platform
 
-- Linux x86-64 only for now. No Windows or macOS builds.
-- **VR mode** (in development): Linux and OpenXR only (tested with WiVRn and Meta Quest 3), controlled with keyboard and mouse – no hand controllers. If no OpenXR runtime or headset is found, the viewer runs as a normal desktop viewer.
+- Currently available builds: Linux x86_64.
+- **VR mode** (in development): currently requires an OpenXR runtime with OpenGL support (tested: WiVRn on Linux with Meta Quest 3), controlled with keyboard and mouse – no hand controllers. If no OpenXR runtime or headset is found, the viewer runs as a normal desktop viewer.
 
 ## Services removed
 
