@@ -1,4 +1,10 @@
-## Firestorm Pull Request Checklist
-Thank you for contributing to the Phoenix Firestorm Project.
-We will endeavour to review you changes and accept/reject/request changes as soon as possible. 
-Please read and follow the [Firestorm Pull Request Guidelines](https://github.com/firestormviewer/phoenix-firestorm/blob/master/CONTRIBUTING.md) to reduce the likelihood that we need to ask for "Bureaucratic" changes to make the code comply with our workflows.
+## Summary
+What changes, and why?
+
+## Checklist
+- [ ] New code is in `pat*` files where possible; changes to Firestorm/LL files are minimal and marked `<PAT:…>`
+- [ ] No copyright notices removed; no new servers, telemetry or proprietary libraries
+- [ ] Tested (grid, OS, VR yes/no):
+- [ ] Commit messages start with `PAT:`
+
+See [CONTRIBUTING.md](../CONTRIBUTING.md).

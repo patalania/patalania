@@ -1,0 +1,65 @@
+name: Bug report
+description: Something in Patalania does not work as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Patalania is provided as-is, without support and without any guarantee of a response or a fix. It is not provided or supported by Linden Lab or the Firestorm team – please report problems only here.
+        Please test with an official release before reporting.
+        Do **not** post passwords or private data. Remove personal information from logs.
+  - type: input
+    id: version
+    attributes:
+      label: Patalania version
+      description: "Help > About Patalania (e.g. 7.2.5.12345)"
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Linux distribution, GPU and driver
+      placeholder: "Ubuntu 24.04, NVIDIA RTX 4070 Ti, driver 5xx"
+    validations:
+      required: true
+  - type: dropdown
+    id: grid
+    attributes:
+      label: Grid
+      options: [Second Life, OSGrid, Other OpenSim grid, Not grid related]
+    validations:
+      required: true
+  - type: dropdown
+    id: vr
+    attributes:
+      label: VR mode
+      options: ["Not used", "Used (headset and OpenXR runtime below)"]
+    validations:
+      required: true
+  - type: input
+    id: headset
+    attributes:
+      label: Headset and OpenXR runtime (VR only)
+      placeholder: "Meta Quest 3, WiVRn 26.9"
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+  - type: textarea
+    id: log
+    attributes:
+      label: Relevant log lines
+      description: "End of ~/.patalania_x64/logs/Patalania.log"
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues.

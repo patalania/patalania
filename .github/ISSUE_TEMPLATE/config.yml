@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Support information
+    url: https://github.com/patalania/patalania/blob/main/SUPPORT.md
+    about: Patalania has no support; bug reports are welcome. Not provided by Linden Lab or Firestorm.
