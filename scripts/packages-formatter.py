@@ -125,7 +125,18 @@ if any(pkgs for pkgs in list(dups.values())):
     sys.exit(1)
 
 print("%s %s" % (args.channel, args.version))
+# <PAT:Phase4> Patalania's own block first, clearly separated; Firestorm's and Linden Lab's copyright lines are kept unchanged below it.
+print("Patalania modifications Copyright (c) 2026, the Patalania contributors.")
+print("Patalania is an independent project and is not affiliated with, endorsed by or supported by The Phoenix Firestorm Project, Inc. or Linden Research, Inc.")
+print("Not included in this build: FMOD, Kakadu (KDU), Havok.")
+print()
+print("Patalania is based on the following software:")
 print(viewer_copyright)
+print("Second Life viewer: Copyright (c) Linden Research, Inc.")
+print()
+print("Includes code from:")
+print()
+# </PAT>
 version = list(info['versions'].items())
 version.sort()
 for pkg, pkg_version in version:

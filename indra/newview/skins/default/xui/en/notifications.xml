@@ -1639,11 +1639,12 @@ Welcome to [APP_NAME] [VERSION] (based on Firestorm [FS_VERSION]).
 
 This software is not provided or supported by Linden Lab, the makers of Second Life.
 
-Second Life is a trademark of Linden Research, Inc. [APP_NAME] is not affiliated with or sponsored by Linden Research or The Phoenix Firestorm Project, Inc.
+Second Life is a trademark of Linden Research, Inc.
+[APP_NAME] is not affiliated with or sponsored by Linden Research or The Phoenix Firestorm Project, Inc.
 
 Support: none. This software is provided as-is; bug reports via GitHub issues are welcome (no guarantee of a response or fix).
 Privacy: no telemetry and no crash upload; only the grid you log in to is contacted, plus the usage statistics Linden Lab requires.
-Known limitations: no FMOD audio (OpenAL), slower texture decoding (OpenJPEG), no Havok physics tools, Linux only.
+Known limitations: no FMOD audio (OpenAL), slower texture decoding (OpenJPEG), no Havok physics tools.
 
 https://github.com/patalania/patalania
     <tag>confirm</tag>

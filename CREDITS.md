@@ -6,7 +6,7 @@ Patalania is a fork of the **Firestorm viewer**, © The Phoenix Firestorm Projec
 
 Patalania is based on the official Firestorm release branch named in the About window (currently `Firestorm_7.2.5`).
 
-Patalania is **not affiliated with or sponsored by** Linden Research, Inc. or The Phoenix Firestorm Project, Inc.
+Patalania is an independent project and is **not affiliated with, endorsed by or sponsored by** Linden Research, Inc. or The Phoenix Firestorm Project, Inc.
 
 ## License
 

@@ -4,7 +4,8 @@
 		<panel label="Info" name="support_panel">
     <text name="support_intro">
 Patalania is based on the Firestorm viewer (The Phoenix Firestorm Project, Inc.) and the Second Life viewer by Linden Lab.
-This software is not provided or supported by Linden Lab, the makers of Second Life. Second Life is a trademark of Linden Research, Inc.; Patalania is not affiliated with or sponsored by Linden Research or the Firestorm project.
+This software is not provided or supported by Linden Lab, the makers of Second Life. Second Life is a trademark of Linden Research, Inc.
+Patalania is not affiliated with or sponsored by Linden Research or the Firestorm project.
 Source code, privacy and support: https://github.com/patalania/patalania
       </text>
 			<button label="In Zwischenablage kopieren" name="copy_btn"/>

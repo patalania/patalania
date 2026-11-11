@@ -8,7 +8,7 @@
 
 **This software is not provided or supported by Linden Lab, the makers of Second Life.**
 
-Second Life is a trademark of Linden Research, Inc. Patalania is not affiliated with or sponsored by Linden Research, nor by The Phoenix Firestorm Project, Inc. Patalania is intended for use with the Second Life® world and OpenSim grids.
+Second Life is a trademark of Linden Research, Inc. Patalania is an independent project; it is not affiliated with, endorsed by or sponsored by Linden Research, nor by The Phoenix Firestorm Project, Inc. Patalania is intended for use with the Second Life® world and OpenSim grids.
 
 ## Base and license
 
@@ -17,7 +17,7 @@ Patalania is a fork of the [Firestorm viewer](https://github.com/FirestormViewer
 ## Information
 
 - [Help](docs/HELP.md) – getting started, other grids, VR
-- [Known limitations](docs/KNOWN_LIMITATIONS.md) – differences from Firestorm (no FMOD/Kakadu/Havok, Linux only, …)
+- [Known limitations](docs/KNOWN_LIMITATIONS.md) – differences from Firestorm (no FMOD/Kakadu/Havok, …)
 - [Privacy statement](PRIVACY.md) – no telemetry, no crash upload; only the grid you log in to
 - [Support](SUPPORT.md) – none; bug reports via GitHub issues are welcome
 - [Contributing](CONTRIBUTING.md)
