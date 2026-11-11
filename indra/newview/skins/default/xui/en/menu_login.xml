@@ -42,6 +42,19 @@
          function="ToggleControl"
          parameter="ForceShowGrid" />
         </menu_item_check>
+        <!-- <PAT:XR> -->
+        <menu_item_check
+         label="VR Mode"
+         name="PAT VR Mode"
+         shortcut="control|shift|V">
+            <menu_item_check.on_check
+             function="CheckControl"
+             parameter="PATVREnabled" />
+            <menu_item_check.on_click
+             function="ToggleControl"
+             parameter="PATVREnabled" />
+        </menu_item_check>
+        <!-- </PAT> -->
         <menu_item_separator />
         <menu_item_call
          label="Exit [APP_NAME]"

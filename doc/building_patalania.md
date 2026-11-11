@@ -50,3 +50,12 @@ cd build-linux-x86_64/newview/packaged && ./patalania
 Einstellungen, Cache und Logs liegen in `~/.patalania_x64` (getrennt von einer vorhandenen Firestorm-Installation
 unter `~/.firestorm_x64`). Der Build ruft noch Firestorm-Dienste (phoenixviewer.com/fsdata) auf – das schaltet Phase 3 ab.
 Sichtbares Branding prüfen: `scripts/pat_branding_check.sh`.
+
+## VR-Modus (OpenXR, ab Phase 6)
+- CMake-Option `PATALANIA_XR` (Standard ON unter Linux, sonst OFF). Kein zusätzliches apt-Paket nötig: Header und
+  statischer Loader (`libopenxr_loader.a`, OpenXR 1.1.40) kommen aus dem autobuild-Paket `openxr` (`ll::openxr`).
+- Laufzeit: eine OpenXR-Runtime, z. B. WiVRn (Flatpak `io.github.wivrn.wivrn`), aktiv über
+  `~/.config/openxr/1/active_runtime.json`. Ohne Runtime/Brille bleibt der Viewer im Desktop-Modus.
+- Code: `indra/newview/patxrsession.{h,cpp}` (plattformneutral), `patxrsession_linux.cpp` (GLX-Anbindung).
+  Einschalten: Menü Avatar → VR-Modus (Strg+Umschalt+V) bzw. Setting `PATVREnabled` (wird nicht gespeichert).
+  Log-Tag `PATXR` in `~/.patalania_x64/logs/Patalania.log`.

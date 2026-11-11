@@ -954,6 +954,19 @@ else (OPENSIM)
         )
 endif (OPENSIM)
 
+# <PAT:XR> OpenXR VR mode: own files only; the loader comes from the openxr autobuild package (ll::openxr)
+if (LINUX)
+  option(PATALANIA_XR "Build the OpenXR VR mode" ON)
+else ()
+  option(PATALANIA_XR "Build the OpenXR VR mode" OFF)
+endif ()
+list(APPEND viewer_SOURCE_FILES patxrsession.cpp patxrsession.h patxrsession_platform.h)
+if (PATALANIA_XR AND LINUX)
+  list(APPEND viewer_SOURCE_FILES patxrsession_linux.cpp)
+  set_source_files_properties(patxrsession.cpp patxrsession_linux.cpp PROPERTIES COMPILE_DEFINITIONS PAT_XR=1)
+endif ()
+# </PAT>
+
 set(VIEWER_BINARY_NAME "patalania-bin" CACHE STRING # <PAT:Rebrand/>
     "The name of the viewer executable to create.")
 

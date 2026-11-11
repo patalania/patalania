@@ -27,6 +27,7 @@
 #include "llviewerprecompiledheaders.h"
 
 #include "llappviewer.h"
+#include "patxrsession.h" // <PAT:XR/>
 
 // Viewer includes
 #include "llversioninfo.h"
@@ -1781,6 +1782,7 @@ bool LLAppViewer::doFrame()
                 gGLActive = true;
 
                 display();
+                PATXRSession::frame(); // <PAT:XR/> OpenXR frame (no-op while the VR mode is off)
 
                 if (LLStartUp::getStartupState() == STATE_STARTED) // <FS:Beq/> FIRE-34590 - Bugsplat caused by updating maps before world is loaded.
                 {
@@ -2441,6 +2443,8 @@ bool LLAppViewer::cleanup()
     LLLFSThread::sLocal->shutdown();
 
     LL_INFOS() << "Shutting down OpenGL" << LL_ENDL;
+
+    PATXRSession::shutdown(); // <PAT:XR/> release OpenXR while the GL context still exists
 
     // Shut down OpenGL
     if (gViewerWindow)

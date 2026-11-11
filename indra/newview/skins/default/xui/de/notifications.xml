@@ -6155,4 +6155,18 @@ Ordner-Namen dürfen kein  / oder \ enthalten.
 		<usetemplate name="okbutton" yestext="OK"/>
 	</notification>
 
+	<!-- <PAT:XR> -->
+	<notification name="PatVRUnavailable">
+Der VR-Modus ist nicht verfügbar, [APP_NAME] bleibt im Desktop-Modus.
+
+[REASON]
+		<usetemplate name="okbutton" yestext="OK"/>
+	</notification>
+	<notification name="PatVRStopped">
+Der VR-Modus wurde beendet, [APP_NAME] ist wieder im Desktop-Modus.
+
+[REASON]
+		<usetemplate name="okbutton" yestext="OK"/>
+	</notification>
+	<!-- </PAT> -->
 </notifications>

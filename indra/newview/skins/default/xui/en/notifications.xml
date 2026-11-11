@@ -15582,4 +15582,28 @@ Folder names cannot contain / or \.
   </notification>
   <!-- </FS:Amy> Favorite Wearables folders -->
 
+  <!-- <PAT:XR> -->
+  <notification
+   icon="alertmodal.tga"
+   name="PatVRUnavailable"
+   type="alert">
+VR mode is not available, [APP_NAME] stays in desktop mode.
+
+[REASON]
+    <usetemplate
+     name="okbutton"
+     yestext="OK"/>
+  </notification>
+  <notification
+   icon="alertmodal.tga"
+   name="PatVRStopped"
+   type="alert">
+VR mode ended, [APP_NAME] is back in desktop mode.
+
+[REASON]
+    <usetemplate
+     name="okbutton"
+     yestext="OK"/>
+  </notification>
+  <!-- </PAT> -->
 </notifications>
