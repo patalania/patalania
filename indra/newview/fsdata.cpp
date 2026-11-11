@@ -61,6 +61,12 @@
 const std::string LEGACY_CLIENT_LIST_URL = "http://phoenixviewer.com/app/client_tags/client_list_v2.xml";
 const LLUUID MAGIC_ID("3c115e51-04f4-523c-9fa6-98aff1034730");
 
+// <PAT:Phase3> Patalania runs no data server. All FSData downloads (fsdata.xml, defaults,
+// script libraries, agents.xml, assets.xml, client tag list) are disabled. Set to true only
+// if a server providing these files is ever added. The code below stays for easy upstream merges.
+static const bool PAT_FSDATA_DOWNLOADS_ENABLED = false;
+// </PAT>
+
 FSData::FSData() :
     mLegacySearch(true),
     mFSDataDone(false),
@@ -294,6 +300,14 @@ static void downloadError(LLSD const &aData, std::string const &aURL)
 // call this just before the login screen and after the LLProxy has been setup.
 void FSData::startDownload()
 {
+    // <PAT:Phase3> No Firestorm data server: report "done" so the startup state machine does not wait.
+    if (!PAT_FSDATA_DOWNLOADS_ENABLED)
+    {
+        LL_INFOS("fsdata") << "FSData downloads are disabled in Patalania" << LL_ENDL;
+        mFSDataDone = true;
+        return;
+    }
+    // </PAT>
     mFSdataFilename = gDirUtilp->getExpandedFilename(LL_PATH_USER_SETTINGS, "fsdata.xml");
     mFSdataDefaultsFilename = gDirUtilp->getExpandedFilename(LL_PATH_USER_SETTINGS, llformat("fsdata_defaults.%s.xml", LLVersionInfo::getInstance()->getShortVersion().c_str()));
     mClientTagsFilename = gDirUtilp->getExpandedFilename(LL_PATH_USER_SETTINGS, "client_list_v2.xml");
@@ -353,6 +367,13 @@ void FSData::startDownload()
 // call this _after_ the login screen to pick up grid data.
 void FSData::downloadAgents()
 {
+    // <PAT:Phase3> No agents.xml/assets.xml download (support agents, blocked assets).
+    if (!PAT_FSDATA_DOWNLOADS_ENABLED)
+    {
+        mAgentsDone = true;
+        return;
+    }
+    // </PAT>
 #ifdef OPENSIM
     std::string filename_prefix = LLGridManager::getInstance()->getGridId();
 #else

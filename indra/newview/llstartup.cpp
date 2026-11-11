@@ -1013,7 +1013,9 @@ bool idle_startup()
 
 // <AW: opensim>
 #ifndef SINGLEGRID
-        if(!gSavedSettings.getBOOL("GridListDownload"))
+        // <PAT:Phase3> never download a grid list without a URL (Patalania has no grid list server)
+        if(!gSavedSettings.getBOOL("GridListDownload") || gSavedSettings.getString("GridListDownloadURL").empty())
+        // </PAT>
         {
             sGridListRequestReady = true;
         }
@@ -3450,7 +3452,9 @@ bool idle_startup()
         }
         // </FS:Techwolf Lupindo>
         // <FS:PP>
-        if (gSavedSettings.getBOOL("AutoQueryGridStatus"))
+        // <PAT:Phase3> no grid status feed URL (was a Firestorm server) -> never query
+        if (gSavedSettings.getBOOL("AutoQueryGridStatus") && !gSavedSettings.getString("AutoQueryGridStatusURL").empty())
+        // </PAT>
         {
             FSCoreHttpUtil::callbackHttpGetRaw(gSavedSettings.getString("AutoQueryGridStatusURL"),
                 downloadGridstatusComplete, [](const LLSD& data) { downloadGridstatusError(data, gSavedSettings.getString("AutoQueryGridStatusURL")); });
@@ -3497,11 +3501,15 @@ void login_show()
     FSPanelLogin::show( gViewerWindow->getWindowRectScaled(), login_callback, NULL );
     // </FS:Ansariel> [FS Login Panel]
     // <FS:PP> Whitelist reminder
+    // <PAT:Phase3> The antivirus whitelist hint is not shown on Linux (and its help page was a Firestorm wiki page).
+#if !LL_LINUX
     if( gSavedSettings.getBOOL("FSShowWhitelistReminder") )
     {
         LLNotificationsUtil::add("WhitelistReminder"); 
         gSavedSettings.setBOOL("FSShowWhitelistReminder", false);
     }
+#endif
+    // </PAT>
     // </FS:PP>
 }
 
