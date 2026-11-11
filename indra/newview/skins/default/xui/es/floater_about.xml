@@ -44,10 +44,10 @@ Calidad de dibujo (Render quality): [RENDERQUALITY]
 	</floater.string>
 	<tab_container name="about_tab">
 		<panel label="Información" name="support_panel">
-			<text name="support_intro">    
-				Para obtener la información más reciente acerca de Firestorm, visita
-https://www.firestormviewer.org
-			</text>
+			<text name="support_intro">
+Patalania is based on the Firestorm viewer and the Second Life viewer by Linden Lab.
+Source code: https://github.com/patalania/patalania
+      </text>
   			<button label="Copiar al portapapeles" name="copy_btn"/>
 		</panel>
 		<panel label="Créditos de Linden Lab" name="credits_panel">

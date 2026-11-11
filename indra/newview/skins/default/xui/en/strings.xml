@@ -7,8 +7,8 @@
 
 	<!-- Default Args - these arguments will be replaced in all strings -->
 	<string name="SECOND_LIFE">[CURRENT_GRID]</string>
-	<string name="APP_NAME">Firestorm</string>
-	<string name="CAPITALIZED_APP_NAME">FIRESTORM</string>
+	<string name="APP_NAME">Patalania</string>
+	<string name="CAPITALIZED_APP_NAME">PATALANIA</string>
 	<string name="SECOND_LIFE_GRID">Second Life Grid</string>
 	<string name="SUPPORT_SITE">Firestorm Support Portal</string>
 	<string name="DOWNLOAD_URL">https://www.firestormviewer.org/choose-your-platform/</string>
@@ -1002,7 +1002,7 @@ If you continue to receive this message, please contact Second Life support for 
 	<string name="InvFolder All">All</string>
 
 	<!-- Virtual Firestorm system folders -->
-	<string name="InvFolder #Firestorm">#Firestorm</string>
+	<string name="InvFolder #Firestorm">#Patalania</string>
 	<string name="InvFolder #Phoenix">#Phoenix</string>
 	<string name="InvFolder #RLV">#RLV</string>
 

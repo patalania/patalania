@@ -8,16 +8,16 @@
 		[當前伺服器]
 	</string>
 	<string name="APP_NAME">
-		Firestorm
+		Patalania
 	</string>
 	<string name="CAPITALIZED_APP_NAME">
-		FIRESTORM
+		PATALANIA
 	</string>
 	<string name="SECOND_LIFE_GRID">
 		第二人生
 	</string>
 	<string name="SUPPORT_SITE">
-		Firestorm支援網站
+		Patalania支援網站
 	</string>
 	<!-- Will be set in fsgridhandler.cpp / llviewernetwork.cpp -->
 	<string name="VIEWER_GENERATION">
@@ -2185,7 +2185,7 @@ support@secondlife.com.
 	</string>
 	<!-- Virtual Firestorm system folders -->
 	<string name="InvFolder #Firestorm">
-		#Firestorm
+		#Patalania
 	</string>
 	<string name="InvFolder #Phoenix">
 		#Phoenix

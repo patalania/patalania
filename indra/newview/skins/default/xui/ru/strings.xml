@@ -8,16 +8,16 @@
 		[CURRENT_GRID]
 	</string>
 	<string name="APP_NAME">
-		Firestorm
+		Patalania
 	</string>
 	<string name="CAPITALIZED_APP_NAME">
-		FIRESTORM
+		PATALANIA
 	</string>
 	<string name="SECOND_LIFE_GRID">
 		Сеть Second Life
 	</string>
 	<string name="SUPPORT_SITE">
-		Портал технической поддержки Firestorm
+		Портал технической поддержки Patalania
 	</string>
 	<string name="StartupDetectingHardware">
 		Обнаружение оборудования...
@@ -2074,7 +2074,7 @@ https://www.firestormviewer.org/support за помощь в решении эт
 		Все
 	</string>
 	<string name="InvFolder #Firestorm">
-		#Firestorm
+		#Patalania
 	</string>
 	<string name="InvFolder #Phoenix">
 		#Phoenix

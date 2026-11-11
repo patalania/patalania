@@ -559,7 +559,7 @@ bool LLCrashLogger::sendCrashLog(std::string dump_dir)
 
     // std::string dump_path = gDirUtilp->getExpandedFilename(LL_PATH_LOGS,
     //                                                        "SecondLifeCrashReport");
-    std::string dump_path = gDirUtilp->getExpandedFilename(LL_PATH_LOGS, "FirestormCrashReport");
+    std::string dump_path = gDirUtilp->getExpandedFilename(LL_PATH_LOGS, "PatalaniaCrashReport");
     std::string report_file = dump_path + ".log";
 
     LL_DEBUGS("CRASHREPORT") << "sending " << report_file << LL_ENDL;
@@ -686,9 +686,9 @@ bool LLCrashLogger::init()
 
     // We assume that all the logs we're looking for reside on the current drive
 #if ADDRESS_SIZE == 64
-    gDirUtilp->initAppDirs( "Firestorm_x64" );
+    gDirUtilp->initAppDirs( "Patalania_x64" );
 #else
-    gDirUtilp->initAppDirs("Firestorm");
+    gDirUtilp->initAppDirs("Patalania");
 #endif
 
     LLError::initForApplication(gDirUtilp->getExpandedFilename(LL_PATH_USER_SETTINGS, ""), gDirUtilp->getExpandedFilename(LL_PATH_APP_SETTINGS, ""));
@@ -697,7 +697,7 @@ bool LLCrashLogger::init()
 
     // <FS:ND> Change default to Firestorm
     //  mProductName = "Second Life";
-    mProductName = "Firestorm";
+    mProductName = "Patalania"; // <PAT:Rebrand/>
     // </FS:ND>
 
     // Rename current log file to ".old"

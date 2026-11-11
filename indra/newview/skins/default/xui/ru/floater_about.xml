@@ -3,9 +3,9 @@
 	<tab_container name="about_tab">
 		<panel label="Информация" name="support_panel">
 			<text name="support_intro">
-				Новая информация о Firestorm доступна по адресу 
-https://www.firestormviewer.org
-			</text>
+Patalania is based on the Firestorm viewer and the Second Life viewer by Linden Lab.
+Source code: https://github.com/patalania/patalania
+      </text>
 			<button label="Копировать в буфер" name="copy_btn"/>
 		</panel>
 		<panel label="Благодарности" name="credits_panel">

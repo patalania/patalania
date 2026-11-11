@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <strings>
 	<string name="SUPPORT_SITE">
-		Firestormサポートポータル
+		Patalaniaサポートポータル
 	</string>
 	<string name="StartupLoading">
 		[APP_NAME]をインストールしています…
@@ -2023,7 +2023,7 @@ https://support.secondlife.com よりSecond Lifeのサポートまでお問い�
 		全員
 	</string>
 	<!-- Virtual Firestorm system folders -->
-	<string name="InvFolder #Firestorm">#Firestorm</string>
+	<string name="InvFolder #Firestorm">#Patalania</string>
 	<string name="InvFolder #Phoenix">#Phoenix</string>
 	<string name="InvFolder #RLV">#RLV</string>
 	<string name="InvFolder My Suitcase">

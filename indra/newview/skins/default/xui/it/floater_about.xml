@@ -46,9 +46,9 @@ Versione Server voce: [VOICE_VERSION]
 	<tab_container name="about_tab">
 		<panel label="Informazioni" name="support_panel">
 			<text name="support_intro">
-Per le ultime informazioni su Firestorm, visitare
-https://www.firestormviewer.org
-			</text>
+Patalania is based on the Firestorm viewer and the Second Life viewer by Linden Lab.
+Source code: https://github.com/patalania/patalania
+      </text>
 			<button label="Copia negli appunti" name="copy_btn"/>
 			<button label="Cerca aggiornamenti" name="update_btn"/>
 		</panel>

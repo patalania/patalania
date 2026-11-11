@@ -10028,7 +10028,7 @@ Select residents to share with.
     icon="alert.tga"
     type="alert">
       [LABEL] failed to upload: [MESSAGE]
-[DETAILS] See Firestorm.log for details
+[DETAILS] See Patalania.log for details
   </notification>
 
   <notification
@@ -10037,7 +10037,7 @@ Select residents to share with.
     type="alert">
       [LABEL] failed to upload: [MESSAGE]
 
-See Firestorm.log for details
+See Patalania.log for details
   </notification>
    
   <notification
@@ -14416,8 +14416,8 @@ This setting is intended for cases where VRAM detection is reporting incorrect v
    name="CurrencyURIOverrideReceived"
    type="alertmodal">
 This region has elected to specify a third-party currency portal. 
-Please note that currency purchases made through Firestorm Viewer are transactions between you (the user) and the provider(s) or seller(s) of the currency. 
-Neither Firestorm Viewer, the Phoenix Firestorm Viewer Project Inc., nor its team shall be liable for any cost or damage arising either directly or indirectly from any such transaction. 
+Please note that currency purchases made through Patalania Viewer are transactions between you (the user) and the provider(s) or seller(s) of the currency. 
+Neither Patalania Viewer, the Phoenix Firestorm Viewer Project Inc., nor its team shall be liable for any cost or damage arising either directly or indirectly from any such transaction. 
 If you do not agree to these terms of use, then no financial transactions should be conducted using this viewer.
    <usetemplate
     ignoretext="When the region sets a new currency helper."
@@ -14947,9 +14947,9 @@ Bulk import of Windlights has finished.
    <unique combine = "cancel_old">
      <context>FSAOScriptedNotification</context>
    </unique>
-Firestorm Animation Overrider: [AO_MESSAGE]
+Patalania Animation Overrider: [AO_MESSAGE]
    <usetemplate
-    ignoretext="Warn me when the Firestorm Animation Overrider gets accessed by a scripted object"
+    ignoretext="Warn me when the Patalania Animation Overrider gets accessed by a scripted object"
     name="notifyignore"/>
   </notification>
   <notification

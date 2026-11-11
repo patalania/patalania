@@ -33,8 +33,8 @@
         top="16"
         width="434"
         wrap="true">
-For the latest information about Firestorm, visit 
-https://www.firestormviewer.org
+Patalania is based on the Firestorm viewer and the Second Life viewer by Linden Lab.
+Source code: https://github.com/patalania/patalania
       </text>
       <text_editor
         parse_urls="true"
