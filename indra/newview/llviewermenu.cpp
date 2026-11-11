@@ -2819,6 +2819,15 @@ class LLAdvancedCompressFileTest : public view_listener_t
 // PRIMFEED AUTH //
 ///////////////////
 #include "fsprimfeedauth.h"
+// <PAT:Phase4> Primfeed is compiled out of the UI unless built with PATALANIA_PRIMFEED
+class PatPrimfeedAvailable : public view_listener_t
+{
+    bool handleEvent(const LLSD& userdata)
+    {
+        return PAT_PRIMFEED != 0;
+    }
+};
+// </PAT>
 class LLAdvancedPrimfeedAuth : public view_listener_t
 {
     bool handleEvent(const LLSD& userdata)
@@ -13209,6 +13218,7 @@ void initialize_menus()
     view_listener_t::addMenu(new LLAdvancedCheckShowObjectUpdates(), "Advanced.CheckShowObjectUpdates");
     view_listener_t::addMenu(new LLAdvancedCompressImage(), "Advanced.CompressImage");
     view_listener_t::addMenu(new LLAdvancedCompressFileTest(), "Advanced.CompressFileTest");
+    view_listener_t::addMenu(new PatPrimfeedAvailable(), "PAT.PrimfeedAvailable"); // <PAT:Phase4/>
     view_listener_t::addMenu(new LLAdvancedPrimfeedAuth(), "Advanced.PrimfeedAuth");
     view_listener_t::addMenu(new LLAdvancedPrimfeedAuthReset(), "Advanced.PrimfeedAuthReset");
     view_listener_t::addMenu(new LLAdvancedShowDebugSettings(), "Advanced.ShowDebugSettings");

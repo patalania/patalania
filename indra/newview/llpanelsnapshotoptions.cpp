@@ -74,6 +74,12 @@ LLPanelSnapshotOptions::LLPanelSnapshotOptions()
 bool LLPanelSnapshotOptions::postBuild()
 {
     mSnapshotFloater = getParentByType<LLFloaterSnapshotBase>();
+    // <PAT:Phase4> hide "Share to Primfeed" unless built with PATALANIA_PRIMFEED
+    if (LLPanel* pf = findChild<LLPanel>("lp_primfeed"))
+    {
+        pf->setVisible(PAT_PRIMFEED != 0);
+    }
+    // </PAT>
     return LLPanel::postBuild();
 }
 

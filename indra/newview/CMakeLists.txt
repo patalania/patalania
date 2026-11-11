@@ -2,6 +2,15 @@
 
 project(viewer)
 
+# <PAT:Phase4> Primfeed sharing is compiled out of the UI by default (needs a Patalania-owned API key; Firestorm's was removed)
+option(PATALANIA_PRIMFEED "Enable Primfeed sharing (needs own API key)" OFF)
+if (PATALANIA_PRIMFEED)
+  add_definitions(-DPAT_PRIMFEED=1)
+else ()
+  add_definitions(-DPAT_PRIMFEED=0)
+endif ()
+# </PAT>
+
 include(00-Common)
 # DON'T move Linking.cmake to its place in the alphabetized list below: it
 # sets variables on which the 3p .cmake files depend.

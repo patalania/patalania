@@ -933,6 +933,8 @@
         <menu_item_call.on_click
           function="Floater.Toggle"
           parameter="primfeed"/>
+        <menu_item_call.on_visible
+          function="PAT.PrimfeedAvailable"/>
       </menu_item_call>
       <menu_item_call
         label="Discord..."
@@ -5776,13 +5778,17 @@
        name="primfeed_auth_test">
         <menu_item_call.on_click
          function="Advanced.PrimfeedAuth" />
-      </menu_item_call>
+        <menu_item_call.on_visible
+          function="PAT.PrimfeedAvailable"/>
+       </menu_item_call>
       <menu_item_call
        label="Primfeed Auth Reset"
        name="primfeed_auth_clear">
         <menu_item_call.on_click
          function="Advanced.PrimfeedAuthReset" />
-      </menu_item_call>
+        <menu_item_call.on_visible
+          function="PAT.PrimfeedAvailable"/>
+       </menu_item_call>
 
       <menu_item_call
          label="Enable Visual Leak Detector"

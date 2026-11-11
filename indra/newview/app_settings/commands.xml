@@ -253,7 +253,7 @@
            is_running_parameters="flickr"
            />
   <command name="primfeed"
-           available_in_toybox="true"
+           available_in_toybox="false"
            icon="Command_Primfeed_Icon"
            label_ref="Command_Primfeed_Label"
            tooltip_ref="Command_Primfeed_Tooltip"
