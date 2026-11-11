@@ -21,13 +21,16 @@ export CC=gcc-14 CXX=g++-14
 
 ## Configure
 ```bash
-autobuild configure -A 64 -c ReleaseOS -- -DVIEWER_CHANNEL:STRING=PatalaniaDev -DLL_TESTS:BOOL=FALSE \
+autobuild configure -A 64 -c ReleaseOS -- -DVIEWER_CHANNEL:STRING=Patalania-Release -DVIEWER_BINARY_NAME:STRING=patalania-bin \
+  -DROOT_PROJECT_NAME:STRING=Patalania -DLL_TESTS:BOOL=FALSE \
   -DUSE_FMODSTUDIO:BOOL=OFF -DUSE_KDU:BOOL=OFF -DOPENSIM:BOOL=ON -DHAVOK_TPV:BOOL=OFF
 ```
 Dauer ca. 1,5 Minuten (lädt die Pakete). Hinweise:
 - Die Schalter `--chan`, `--clean`, `--package` aus der Firestorm-Doku funktionieren mit autobuild 3.10 **nicht**
   (werden roh an CMake durchgereicht → „Unknown argument“). Kanal stattdessen mit `-DVIEWER_CHANNEL`.
 - Die Konfiguration `ReleaseOS` in `autobuild.xml` setzt weder OPENSIM noch FMOD/KDU/Havok → Flags explizit angeben.
+- `VIEWER_BINARY_NAME` und `ROOT_PROJECT_NAME` sind CMake-Cache-Variablen: In einem bereits konfigurierten Build-Ordner
+  müssen sie (wie oben) explizit übergeben werden, sonst bleibt der alte Name `firestorm-bin`/`Firestorm` im Cache.
 - Ohne `ninja` im PATH scheitert CMake („unable to find Ninja“).
 
 ## Build – mit Speichergrenze!
@@ -42,8 +45,8 @@ nach Fortsetzung; Ergebnis liegt in `build-linux-x86_64/newview/packaged/` und a
 
 ## Starten
 ```bash
-cd build-linux-x86_64/newview/packaged && ./firestorm
+cd build-linux-x86_64/newview/packaged && ./patalania
 ```
-Achtung: Der Viewer nutzt den Datenpfad `~/.firestorm_x64` (Einstellungen einer vorhandenen Firestorm-Installation werden
-mitbenutzt; `HOME=` umzubiegen hilft nicht). Wird in Phase 2 durch den Rebrand getrennt.
-Der unveränderte Build ruft noch Firestorm-Dienste (phoenixviewer.com/fsdata) auf – das schaltet Phase 3 ab.
+Einstellungen, Cache und Logs liegen in `~/.patalania_x64` (getrennt von einer vorhandenen Firestorm-Installation
+unter `~/.firestorm_x64`). Der Build ruft noch Firestorm-Dienste (phoenixviewer.com/fsdata) auf – das schaltet Phase 3 ab.
+Sichtbares Branding prüfen: `scripts/pat_branding_check.sh`.
