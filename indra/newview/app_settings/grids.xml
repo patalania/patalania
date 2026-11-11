@@ -26,6 +26,34 @@
         <key>slurl_base</key>
             <string>hop://localhost:9000/</string>
         </map>        
+        <key>login.osgrid.org</key>
+        <map>
+            <key>LastModified</key>
+            <date>2026-11-11T12:00:00Z</date>
+            <key>grid_login_id</key>
+            <string>login.osgrid.org</string>
+            <key>gridname</key>
+            <string>OSGrid</string>
+            <key>gridnick</key>
+            <string>osgrid</string>
+            <key>helperuri</key>
+            <string>http://helper.osgrid.org/</string>
+            <key>login_identifier_types</key>
+            <array>
+                <string>agent</string>
+                <string>account</string>
+            </array>
+            <key>loginpage</key>
+            <undef />
+            <key>loginuri</key>
+            <array>
+                <string>http://login.osgrid.org/</string>
+            </array>
+            <key>name</key>
+            <string>login.osgrid.org</string>
+            <key>platform</key>
+            <string>OpenSim</string>
+        </map>
         <key>util.aditi.lindenlab.com</key>
         <map>
         <key>LastModified</key>
@@ -43,7 +71,7 @@
                 <string>agent</string>
             </array>
         <key>loginpage</key>
-            <string>http://phoenixviewer.com/app/loginV3/</string>
+            <undef />
         <key>loginuri</key>
             <array>
                 <string>https://login.aditi.lindenlab.com/cgi-bin/login.cgi</string>
@@ -76,7 +104,7 @@
             <string>agent</string>
         </array>
         <key>loginpage</key>
-        <string>http://phoenixviewer.com/app/loginV3/</string>
+        <undef />
         <key>loginuri</key>
         <array>
             <string>https://login.agni.lindenlab.com/cgi-bin/login.cgi</string>

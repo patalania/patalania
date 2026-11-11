@@ -40,6 +40,7 @@
 
 #include "lltrans.h"
 #include "llweb.h"
+#include "lluri.h" // <PAT:Phase3> for the local login page URL
 #include "llbufferstream.h"
 #if LL_WINDOWS
 #include <Winsock2.h>
@@ -150,7 +151,18 @@ void gridDownloadComplete(const LLSD& aData, LLGridManager* mOwner, GridEntry* m
     }
 }
 
-const char* DEFAULT_LOGIN_PAGE = "https://phoenixviewer.com/app/loginV3/";
+// <PAT:Phase3> The Firestorm web login page (phoenixviewer.com) is gone. Patalania ships a small local
+// login page instead (skins/default/html/patalania/login/login.html); see patLocalLoginPage().
+// An empty DEFAULT_LOGIN_PAGE means "use the local page" (resolved in LLGridManager::getLoginPage()).
+const char* DEFAULT_LOGIN_PAGE = "";
+
+static std::string patLocalLoginPage()
+{
+    const std::string delim = gDirUtilp->getDirDelimiter();
+    std::string path = gDirUtilp->getDefaultSkinDir() + delim + "html" + delim + "patalania" + delim + "login" + delim + "login.html";
+    return "file://" + LLURI::escape(path, "/:");
+}
+// </PAT>
 
 const char* SYSTEM_GRID_SLURL_BASE     = "secondlife://%s/secondlife/";
 const char* MAIN_GRID_SLURL_BASE       = "https://maps.secondlife.com/secondlife/";
@@ -700,7 +712,9 @@ void LLGridManager::addGrid(GridEntry* grid_entry, AddState state)
         // Populate to the default values
         if (!grid_entry->grid.has(GRID_LOGIN_PAGE_VALUE))
         {
-            grid_entry->grid[GRID_LOGIN_PAGE_VALUE] = std::string("http://") + grid + "/app/login/";
+            // <PAT:Phase3> use the local login page instead of guessing http://<grid>/app/login/
+            grid_entry->grid[GRID_LOGIN_PAGE_VALUE] = std::string();
+            // </PAT>
             LL_WARNS() << "Adding Legacy Login Screen at:" << grid_entry->grid[GRID_LOGIN_PAGE_VALUE].asString() << LL_ENDL;
         }
         if (!grid_entry->grid.has(GRID_HELPER_URI_VALUE))
@@ -1169,7 +1183,14 @@ std::string LLGridManager::getLoginPage()
         return cmd_line_login_page;
     }
 
-    return mGridList[mGrid][GRID_LOGIN_PAGE_VALUE];
+    // <PAT:Phase3> grids without a login page of their own get the local Patalania page
+    std::string login_page = mGridList[mGrid][GRID_LOGIN_PAGE_VALUE].asString();
+    if (login_page.empty() || login_page == "null")
+    {
+        return patLocalLoginPage();
+    }
+    return login_page;
+    // </PAT>
 }
 
 std::string LLGridManager::getWebProfileURL(const std::string& grid)
