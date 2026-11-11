@@ -160,7 +160,7 @@ static std::string patLocalLoginPage()
 {
     const std::string delim = gDirUtilp->getDirDelimiter();
     std::string path = gDirUtilp->getDefaultSkinDir() + delim + "html" + delim + "patalania" + delim + "login" + delim + "login.html";
-    return "file://" + LLURI::escape(path, "/:");
+    return "file://" + LLURI::escape(path, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~/");
 }
 // </PAT>
 

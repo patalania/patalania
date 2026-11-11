@@ -958,11 +958,25 @@ void FSPanelLogin::loadLoginPage()
                                      login_page.path(),
                                      params));
 
-    LLMediaCtrl* web_browser = sInstance->getChild<LLMediaCtrl>("login_html");
-    if (web_browser->getCurrentNavUrl() != login_uri.asString())
+    // <PAT:Phase3> LLURI::buildHTTP drops the path of file:// URLs (the local login page), so build
+    // those by hand: <page without query> + escaped query string.
+    std::string nav_url = login_uri.asString();
+    if (login_page.scheme() == "file")
     {
-        LL_DEBUGS("AppInit") << "loading:    " << login_uri << LL_ENDL;
-        web_browser->navigateTo( login_uri.asString(), HTTP_CONTENT_TEXT_HTML );
+        std::string base = login_page.asString();
+        std::string::size_type q = base.find('?');
+        if (q != std::string::npos)
+        {
+            base.erase(q);
+        }
+        nav_url = base + LLURI::mapToQueryString(params);
+    }
+    // </PAT>
+    LLMediaCtrl* web_browser = sInstance->getChild<LLMediaCtrl>("login_html");
+    if (web_browser->getCurrentNavUrl() != nav_url)
+    {
+        LL_DEBUGS("AppInit") << "loading:    " << nav_url << LL_ENDL;
+        web_browser->navigateTo( nav_url, HTTP_CONTENT_TEXT_HTML );
     }
 }
 
