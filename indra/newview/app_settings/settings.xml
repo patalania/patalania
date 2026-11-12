@@ -27189,6 +27189,17 @@ Change of this parameter will affect the layout of buttons in notification toast
       <key>Value</key>
       <real>0.8</real>
     </map>
+    <key>PATVRFirstPersonForwardOffset</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; Mouselook in VR: eye position this many metres in front of the avatar's eyes, along the body's forward direction.</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>F32</string>
+      <key>Value</key>
+      <real>0.10</real>
+    </map>
     <key>PATVRHalfRate</key>
     <map>
       <key>Comment</key>

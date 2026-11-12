@@ -383,6 +383,16 @@ bool PATXRStereo::beginEyes(const XrView views[2])
         gAgentAvatarp->mEyeLeftp && gAgentAvatarp->mEyeRightp)
     {
         eye_base = (gAgentAvatarp->mEyeLeftp->getWorldPosition() + gAgentAvatarp->mEyeRightp->getWorldPosition()) * 0.5f;
+        // Slightly in front of the body (user test: at the eye joints one sees
+        // the own back when looking down to the side). Along the body's forward
+        // direction (pelvis yaw), not the viewing direction.
+        static LLCachedControl<F32> fwd_offset(gSavedSettings, "PATVRFirstPersonForwardOffset", 0.10f);
+        LLVector3 body_fwd = LLVector3::x_axis * gAgentAvatarp->mPelvisp->getWorldRotation();
+        body_fwd.mV[VZ] = 0.f;
+        if (body_fwd.normVec() > 0.1f)
+        {
+            eye_base += body_fwd * llclamp((F32)fwd_offset, -0.3f, 0.5f);
+        }
     }
     sBase.at = cam.getAtAxis();
     sBase.left = cam.getLeftAxis();
