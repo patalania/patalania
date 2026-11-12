@@ -36,6 +36,7 @@ class LLColor4;
 class LLFontGL;
 class LLVector3;
 class LLVector3d;
+class LLMatrix4;
 
 class PATXRSession
 {
@@ -94,6 +95,22 @@ public:
     static void mouseRayOriginGlobal(LLVector3d& origin);
     // LLViewerWindow::calcDisplayScale(): extra UI scale while the UI is on the panel.
     static F32 uiScale();
+    // LLViewerWindow::updateUI(): the VR pointer may be outside the window (beyond the panel, in the world).
+    static bool pointerBeyondWindow();
+    // LLViewerWindow::performPick(): pick callbacks (manipulator highlights) run
+    // with the panel camera, like the input handling between frames.
+    struct PointerCamera
+    {
+        PointerCamera();
+        ~PointerCamera();
+        bool mActive = false;
+    };
+    // LLViewerCamera::calcProjection(): off-axis shift while the panel camera is set.
+    static void offsetProjection(LLMatrix4& proj);
+    // LLVOAvatar::idleCalcNameTagPosition(): Firestorm moves the tag towards the
+    // camera (front of the body); in VR it stays at the avatar's depth. Returns
+    // what to add back (zero outside VR).
+    static LLVector3 nameTagDepth(const LLVector3& towards_camera);
 };
 
 #endif // PAT_XRSESSION_H

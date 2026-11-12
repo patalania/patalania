@@ -27255,6 +27255,17 @@ Change of this parameter will affect the layout of buttons in notification toast
       <key>Value</key>
       <real>0.35</real>
     </map>
+    <key>PATVRPointerReach</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: how far the pointer can leave the UI panel, as a share of the panel width/height on each side.</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>F32</string>
+      <key>Value</key>
+      <real>1.0</real>
+    </map>
     <key>PATVRUIQuadLayer</key>
     <map>
       <key>Comment</key>
@@ -27286,7 +27297,7 @@ Change of this parameter will affect the layout of buttons in notification toast
       <key>Type</key>
       <string>F32</string>
       <key>Value</key>
-      <real>1.8</real>
+      <real>2.3</real>
     </map>
     <key>PATVRUIDistance</key>
     <map>
@@ -27324,7 +27335,7 @@ Change of this parameter will affect the layout of buttons in notification toast
     <key>PATVRConfineMouse</key>
     <map>
       <key>Comment</key>
-      <string>&lt;PAT:XR&gt; VR: keep the mouse inside the viewer window, so the pointer stays on the UI panel.</string>
+      <string>&lt;PAT:XR&gt; VR: the mouse drives a pointer of its own (system cursor captured) that moves on the UI panel and beyond it into the world (PATVRPointerReach).</string>
       <key>Persist</key>
       <integer>1</integer>
       <key>Type</key>

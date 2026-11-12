@@ -4353,10 +4353,10 @@ void LLViewerWindow::updateMouseDelta()
     //RN: fix for asynchronous notification of mouse leaving window not working
     LLCoordWindow mouse_pos;
     mWindow->getCursorPosition(&mouse_pos);
-    if (mouse_pos.mX < 0 ||
+    if ((mouse_pos.mX < 0 ||
         mouse_pos.mY < 0 ||
         mouse_pos.mX > mWindowRectRaw.getWidth() ||
-        mouse_pos.mY > mWindowRectRaw.getHeight())
+        mouse_pos.mY > mWindowRectRaw.getHeight()) && !PATXRSession::pointerBeyondWindow()) // <PAT:XR/> VR: pointer may leave the panel
     {
         mMouseInWindow = false;
     }
@@ -5433,6 +5433,7 @@ void LLViewerWindow::schedulePick(LLPickInfo& pick_info)
 
 void LLViewerWindow::performPick()
 {
+    PATXRSession::PointerCamera pat_pointer_camera; // <PAT:XR/> VR: pick callbacks (manipulators) see the UI panel camera
     if (!mPicks.empty())
     {
         std::vector<LLPickInfo>::iterator pick_it;

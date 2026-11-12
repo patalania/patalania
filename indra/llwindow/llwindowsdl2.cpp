@@ -1209,6 +1209,39 @@ void LLWindowSDL::setMouseClipping( bool b )
     //SDL_WM_GrabInput(b ? SDL_GRAB_ON : SDL_GRAB_OFF);
 }
 
+// <PAT:XR> VR: virtual pointer driven by relative mouse motion (may leave the window).
+void LLWindowSDL::setVirtualPointer(bool enable, S32 min_x, S32 min_y, S32 max_x, S32 max_y)
+{
+    mPATPointerMin[0] = min_x;
+    mPATPointerMin[1] = min_y;
+    mPATPointerMax[0] = llmax(min_x, max_x);
+    mPATPointerMax[1] = llmax(min_y, max_y);
+    if (enable == mPATVirtualPointer)
+    {
+        return;
+    }
+    if (enable)
+    {
+        int x = 0, y = 0;
+        SDL_GetMouseState(&x, &y);
+        mPATPointerX = (F32)x;
+        mPATPointerY = (F32)y;
+        mPATVirtualPointer = true;
+        SDL_SetRelativeMouseMode(SDL_TRUE);
+    }
+    else
+    {
+        mPATVirtualPointer = false;
+        SDL_SetRelativeMouseMode(SDL_FALSE);
+        int w = 0, h = 0;
+        SDL_GetWindowSize(mWindow, &w, &h);
+        SDL_WarpMouseInWindow(mWindow, llclamp(ll_round(mPATPointerX), 0, llmax(0, w - 1)),
+                              llclamp(ll_round(mPATPointerY), 0, llmax(0, h - 1)));
+    }
+    LL_INFOS("Window") << "Virtual pointer " << (enable ? "on" : "off") << LL_ENDL;
+}
+// </PAT:XR>
+
 // virtual
 void LLWindowSDL::setMinSize(U32 min_width, U32 min_height, bool enforce_immediately)
 {
@@ -1230,6 +1263,12 @@ void LLWindowSDL::setMinSize(U32 min_width, U32 min_height, bool enforce_immedia
 
 bool LLWindowSDL::setCursorPosition(const LLCoordWindow position)
 {
+    if (mPATVirtualPointer) // <PAT:XR> VR: move the virtual pointer, no warp
+    {
+        mPATPointerX = (F32)position.mX;
+        mPATPointerY = (F32)position.mY;
+        return true;
+    } // </PAT:XR>
     bool result = true;
     LLCoordScreen screen_pos;
 
@@ -1253,6 +1292,12 @@ bool LLWindowSDL::getCursorPosition(LLCoordWindow *position)
     //Point cursor_point;
     LLCoordScreen screen_pos;
 
+    if (mPATVirtualPointer) // <PAT:XR> VR: virtual pointer
+    {
+        position->mX = ll_round(mPATPointerX);
+        position->mY = ll_round(mPATPointerY);
+        return true;
+    } // </PAT:XR>
     //GetMouse(&cursor_point);
     int x, y;
     SDL_GetMouseState(&x, &y);
@@ -1840,6 +1885,12 @@ void LLWindowSDL::gatherInput()
             case SDL_MOUSEMOTION:
             {
                 LLCoordWindow winCoord(event.button.x, event.button.y);
+                if (mPATVirtualPointer) // <PAT:XR> VR: relative motion moves the virtual pointer
+                {
+                    mPATPointerX = llclamp(mPATPointerX + (F32)event.motion.xrel, (F32)mPATPointerMin[0], (F32)mPATPointerMax[0]);
+                    mPATPointerY = llclamp(mPATPointerY + (F32)event.motion.yrel, (F32)mPATPointerMin[1], (F32)mPATPointerMax[1]);
+                    winCoord.set(ll_round(mPATPointerX), ll_round(mPATPointerY));
+                } // </PAT:XR>
                 LLCoordGL openGlCoord;
                 convertCoords(winCoord, &openGlCoord);
                 MASK mask = gKeyboard->currentMask(true);
@@ -1934,6 +1985,7 @@ void LLWindowSDL::gatherInput()
             {
                 bool isDoubleClick = false;
                 LLCoordWindow winCoord(event.button.x, event.button.y);
+                if (mPATVirtualPointer) winCoord.set(ll_round(mPATPointerX), ll_round(mPATPointerY)); // <PAT:XR/>
                 LLCoordGL openGlCoord;
                 convertCoords(winCoord, &openGlCoord);
                 MASK mask = gKeyboard->currentMask(true);
@@ -1997,6 +2049,7 @@ void LLWindowSDL::gatherInput()
             case SDL_MOUSEBUTTONUP:
             {
                 LLCoordWindow winCoord(event.button.x, event.button.y);
+                if (mPATVirtualPointer) winCoord.set(ll_round(mPATPointerX), ll_round(mPATPointerY)); // <PAT:XR/>
                 LLCoordGL openGlCoord;
                 convertCoords(winCoord, &openGlCoord);
                 MASK mask = gKeyboard->currentMask(true);

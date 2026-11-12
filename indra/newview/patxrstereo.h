@@ -93,8 +93,12 @@ namespace PATXRStereo
     // (manipulator highlights, rectangle selection, hover) matches what the
     // pointer covers in the headset. restoreCamera() in idle(), right before
     // gAgentCamera.updateCamera(), gives Firestorm its own camera back.
-    void setPointerCamera(const XrVector3f& origin, const XrVector3f& at, const XrVector3f& up, F32 vfov, F32 aspect);
+    void setPointerCamera(const XrVector3f& origin, const XrVector3f& at, const XrVector3f& up, F32 vfov, F32 aspect,
+                          F32 ndc_x, F32 ndc_y);
     void restoreCamera();
+    bool pointerCameraActive();
+    // Off-axis shift of the pointer camera (LLViewerCamera::calcProjection).
+    void offsetProjection(LLMatrix4& proj);
 
     // Copy eye 'eye' into an OpenXR swapchain image (GL texture) of the same size.
     void copyToSwapchain(U32 eye, GLuint texture, S32 width, S32 height);

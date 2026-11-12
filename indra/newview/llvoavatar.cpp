@@ -136,6 +136,7 @@
 #include "llsidepanelappearance.h"
 #include "llviewermenufile.h"
 #include "llviewernetwork.h"    // [FS:CR] isInSecondlife()
+#include "patxrsession.h" // <PAT:XR/>
 
 
 extern F32 SPEED_ADJUST_MAX;
@@ -4615,6 +4616,7 @@ LLVector3 LLVOAvatar::idleCalcNameTagPosition(const LLVector3 &root_pos_last)
     //LLVector3 name_position = mRoot->getLastWorldPosition() + (mCurRootToHeadOffset * root_rot);
     name_position = mRoot->getLastWorldPosition() + (mCurRootToHeadOffset * root_rot);
     name_position += (local_camera_up * root_rot) - (projected_vec(local_camera_at * root_rot, camera_to_av));
+    name_position += PATXRSession::nameTagDepth(projected_vec(local_camera_at * root_rot, camera_to_av)); // <PAT:XR/> VR: tag at the avatar's depth
     name_position += pixel_up_vec * NAMETAG_VERTICAL_SCREEN_OFFSET;
     // <FS:Ansariel> Optional legacy nametag position
     }

@@ -126,6 +126,11 @@ public:
     virtual void captureMouse() = 0;
     virtual void releaseMouse() = 0;
     virtual void setMouseClipping( bool b ) = 0;
+    // <PAT:XR> VR: the mouse drives a virtual pointer that may leave the window
+    // (window coordinates, top-left origin, within min/max). Mouse events and
+    // get/setCursorPosition use it; the system cursor is captured meanwhile.
+    virtual void setVirtualPointer(bool enable, S32 min_x, S32 min_y, S32 max_x, S32 max_y) {}
+    // </PAT:XR>
 
     virtual bool isClipboardTextAvailable() = 0;
     virtual bool pasteTextFromClipboard(LLWString &dst) = 0;

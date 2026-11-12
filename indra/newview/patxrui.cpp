@@ -171,7 +171,7 @@ namespace
     bool sPlaced = false;
     bool sRecentre = false;
     XrVector3f sC{ 0.f, 0.f, 0.f }, sR{ 1.f, 0.f, 0.f }, sU{ 0.f, 1.f, 0.f }, sN{ 0.f, 0.f, 1.f };
-    F32 sW = 1.8f, sH = 1.f;
+    F32 sW = 2.3f, sH = 1.f;
     XrVector3f sEye{ 0.f, 0.f, 0.f };
     bool sEyeValid = false;
     bool sSpaceWasHeld = false;
@@ -553,8 +553,12 @@ namespace
         }
         const LLVector2& scale = gViewerWindow->getDisplayScale();
         const LLCoordGL mouse = gViewerWindow->getCurrentMouse();
-        const F32 mx = llclamp((F32)mouse.mX * scale.mV[VX], 0.f, (F32)(sTexW - 1));
-        const F32 my = llclamp((F32)mouse.mY * scale.mV[VY], 0.f, (F32)(sTexH - 1));
+        const F32 mx = (F32)mouse.mX * scale.mV[VX];
+        const F32 my = (F32)mouse.mY * scale.mV[VY];
+        if (mx < 0.f || my < 0.f || mx >= (F32)sTexW || my >= (F32)sTexH)
+        {
+            return; // beyond the panel: drawn in the world (drawWorldPointer)
+        }
         static LLCachedControl<F32> cursor_scale(gSavedSettings, "PATVRCursorScale", 1.f);
         const F32 s = llclamp((F32)cursor_scale, 0.25f, 4.f) * llmax(1.f, scale.mV[VX]);
 
@@ -633,7 +637,7 @@ namespace
     // never moved by the avatar or the SL camera); follow mode: every frame.
     void placeAt(const XrVector3f& eye, F32 yaw)
     {
-        static LLCachedControl<F32> width(gSavedSettings, "PATVRUIWidth", 1.8f);
+        static LLCachedControl<F32> width(gSavedSettings, "PATVRUIWidth", 2.3f);
         if (!sResized)
         {
             sW = llclamp((F32)width, MIN_WIDTH, MAX_WIDTH);
@@ -654,7 +658,7 @@ namespace
     // Head-locked mode: fixed in front of the head, turns and tilts with it.
     void placeOnHead(const XrPosef& left_eye)
     {
-        static LLCachedControl<F32> width(gSavedSettings, "PATVRUIWidth", 1.8f);
+        static LLCachedControl<F32> width(gSavedSettings, "PATVRUIWidth", 2.3f);
         if (!sResized)
         {
             sW = llclamp((F32)width, MIN_WIDTH, MAX_WIDTH);
@@ -1126,7 +1130,7 @@ bool PATXRUI::rayRoom(F32 u, F32 v, XrVector3f& origin, XrVector3f& dir)
     return norm(dir) > 0.01f;
 }
 
-bool PATXRUI::pointerCamera(XrVector3f& origin, XrVector3f& at, XrVector3f& up, F32& vfov, F32& aspect)
+bool PATXRUI::pointerCamera(XrVector3f& origin, XrVector3f& at, XrVector3f& up, F32& vfov, F32& aspect, F32& ndc_x, F32& ndc_y)
 {
     if (!sActive || !sPlaced || !sEyeValid)
     {
@@ -1137,12 +1141,61 @@ bool PATXRUI::pointerCamera(XrVector3f& origin, XrVector3f& at, XrVector3f& up, 
     {
         return false; // head at or behind the panel
     }
-    origin = add(sC, mul(sN, t));
+    const XrVector3f foot = sub(sEye, mul(sN, t)); // eye projected onto the panel plane
+    origin = sEye;
     at = mul(sN, -1.f);
     up = sU;
     vfov = 2.f * atanf(0.5f * sH / t);
     aspect = sW / llmax(0.01f, sH);
+    ndc_x = 2.f * dot(sub(foot, sC), sR) / sW;
+    ndc_y = 2.f * dot(sub(foot, sC), sU) / llmax(0.01f, sH);
     return true;
+}
+
+void PATXRUI::drawWorldPointer(const XrView& view, GLuint texture, S32 width, S32 height)
+{
+    if (!hasImage() || !gViewerWindow || !gViewerWindow->getWindow() || gAgentCamera.cameraMouselook() || sTexW <= 0)
+    {
+        return;
+    }
+    const LLVector2& scale = gViewerWindow->getDisplayScale();
+    const LLCoordGL mouse = gViewerWindow->getCurrentMouse();
+    const F32 mx = (F32)mouse.mX * scale.mV[VX];
+    const F32 my = (F32)mouse.mY * scale.mV[VY];
+    if (mx >= 0.f && my >= 0.f && mx < (F32)sTexW && my < (F32)sTexH)
+    {
+        return; // on the panel: drawn into the panel texture
+    }
+    CursorImage* img = cursorImage(gViewerWindow->getWindow()->getCursor());
+    if (!img)
+    {
+        return;
+    }
+    const XrVector3f p = add(add(sC, mul(sR, (mx / sTexW - 0.5f) * sW)), mul(sU, (my / sTexH - 0.5f) * sH));
+    const F32 t = llmax(0.05f, dot(sub(sEye, sC), sN));
+    XrVector3f to_p = sub(p, sEye);
+    const F32 k = norm(to_p) / t; // same angular size as on the panel
+    static LLCachedControl<F32> cursor_scale(gSavedSettings, "PATVRCursorScale", 1.f);
+    const F32 m = (sW / (F32)sTexW) * k * llclamp((F32)cursor_scale, 0.25f, 4.f) * llmax(1.f, scale.mV[VX]);
+    // image pixel (x right, y down) relative to the hot spot -> panel plane
+    auto corner = [&](F32 ix, F32 iy) { return add(add(p, mul(sR, (ix - img->hot_x) * m)), mul(sU, -(iy - img->hot_y) * m)); };
+    const XrVector3f corners[4] = { corner(0.f, (F32)img->h), corner((F32)img->w, (F32)img->h), corner(0.f, 0.f),
+                                    corner((F32)img->w, 0.f) };
+    SavedGL saved;
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sFbo);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+    glViewport(0, 0, width, height);
+    glEnable(GL_BLEND);
+    glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glBindTexture(GL_TEXTURE_2D, img->tex);
+    glUniform1i(sAlphaFixLoc, 0);
+    F32 clip[4][4];
+    for (U32 i = 0; i < 4; ++i)
+    {
+        toClip(view, corners[i], clip[i]);
+    }
+    drawQuad(clip, FULL_UV);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
 }
 
 F32 PATXRUI::uiScale()

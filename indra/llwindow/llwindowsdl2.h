@@ -84,6 +84,7 @@ public:
     /*virtual*/ void captureMouse();
     /*virtual*/ void releaseMouse();
     /*virtual*/ void setMouseClipping( bool b );
+    /*virtual*/ void setVirtualPointer(bool enable, S32 min_x, S32 min_y, S32 max_x, S32 max_y); // <PAT:XR/>
     /*virtual*/ void setMinSize(U32 min_width, U32 min_height, bool enforce_immediately = true);
 
     /*virtual*/ bool isClipboardTextAvailable();
@@ -204,6 +205,11 @@ protected:
     int         mReallyCapturedCount;
 
     SDL_Window* mWindow;
+    // <PAT:XR> virtual pointer (VR), window coordinates
+    bool mPATVirtualPointer = false;
+    F32 mPATPointerX = 0.f, mPATPointerY = 0.f;
+    S32 mPATPointerMin[2] = { 0, 0 }, mPATPointerMax[2] = { 0, 0 };
+    // </PAT:XR>
     SDL_Surface* mSurface;
     SDL_GLContext mContext;
     SDL_Cursor* mSDLCursors[UI_CURSOR_COUNT];

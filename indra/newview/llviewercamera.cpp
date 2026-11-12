@@ -195,6 +195,7 @@ void LLViewerCamera::calcProjection(const F32 far_distance) const
     mProjectionMatrix.mMatrix[2][2] = (z_far + z_near)/(z_near - z_far);
     mProjectionMatrix.mMatrix[3][2] = (2*z_far*z_near)/(z_near - z_far);
     mProjectionMatrix.mMatrix[2][3] = -1;
+    PATXRSession::offsetProjection(mProjectionMatrix); // <PAT:XR/> VR: off-axis panel camera between frames
 }
 
 // Sets up opengl state for 3D drawing.  If for selection, also

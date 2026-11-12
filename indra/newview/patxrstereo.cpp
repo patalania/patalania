@@ -120,6 +120,7 @@ namespace
     // Firestorm's camera while the pointer camera is set between frames.
     bool sPointerCamera = false;
     BaseCamera sSavedCamera;
+    F32 sNdcOffset[2] = { 0.f, 0.f };
     LLRect sWindowWorldRect;
     glm::mat4 sProj[2];
     glm::mat4 sView[2];
@@ -702,7 +703,8 @@ bool PATXRStereo::roomDirToAgent(const XrVector3f& d, LLVector3& out)
     return true;
 }
 
-void PATXRStereo::setPointerCamera(const XrVector3f& origin, const XrVector3f& at, const XrVector3f& up, F32 vfov, F32 aspect)
+void PATXRStereo::setPointerCamera(const XrVector3f& origin, const XrVector3f& at, const XrVector3f& up, F32 vfov, F32 aspect,
+                                   F32 ndc_x, F32 ndc_y)
 {
     LLVector3 o, a, u;
     if (sInEyes || !roomPointToAgent(origin, o) || !roomDirToAgent(at, a) || !roomDirToAgent(up, u))
@@ -729,6 +731,23 @@ void PATXRStereo::setPointerCamera(const XrVector3f& origin, const XrVector3f& a
     cam.setAxes(a, left, u);
     cam.setViewNoBroadcast(llclamp(vfov, 0.1f, 2.5f));
     cam.setAspect(llclamp(aspect, 0.2f, 5.f));
+    sNdcOffset[0] = llclamp(ndc_x, -2.f, 2.f);
+    sNdcOffset[1] = llclamp(ndc_y, -2.f, 2.f);
+}
+
+bool PATXRStereo::pointerCameraActive()
+{
+    return sPointerCamera;
+}
+
+void PATXRStereo::offsetProjection(LLMatrix4& proj)
+{
+    if (sPointerCamera)
+    {
+        // x_clip += ndc_x * w_clip with w_clip = -z_eye (row-vector matrices)
+        proj.mMatrix[2][0] -= sNdcOffset[0];
+        proj.mMatrix[2][1] -= sNdcOffset[1];
+    }
 }
 
 void PATXRStereo::restoreCamera()

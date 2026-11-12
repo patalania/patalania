@@ -30,8 +30,6 @@
 
 #include "llgl.h" // GL + GLX (X11) headers on Linux
 
-#include <SDL2/SDL.h>
-
 #define XR_USE_PLATFORM_XLIB
 #define XR_USE_GRAPHICS_API_OPENGL
 #include <openxr/openxr.h>
@@ -131,17 +129,6 @@ const void* PATXRPlatform::graphicsBinding(std::string& error)
     LL_INFOS("PATXR") << "GLX binding: screen " << screen << ", fbconfig 0x" << std::hex << fbconfig_id
                       << ", visual 0x" << visual_id << std::dec << LL_ENDL;
     return &sBinding;
-}
-
-void PATXRPlatform::confineMouse(bool confine)
-{
-    // The viewer's SDL window owns the GL context on the main thread.
-    SDL_Window* window = SDL_GL_GetCurrentWindow();
-    if (window)
-    {
-        SDL_SetWindowGrab(window, confine ? SDL_TRUE : SDL_FALSE);
-        LL_INFOS("PATXR") << "Mouse " << (confine ? "kept inside the window" : "free again") << LL_ENDL;
-    }
 }
 
 #endif // PAT_XR

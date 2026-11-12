@@ -46,6 +46,7 @@
 #include "llstartup.h"
 #include "llviewercontrol.h"
 #include "llviewerwindow.h"
+#include "llwindow.h"
 
 #define XR_USE_GRAPHICS_API_OPENGL
 #include <openxr/openxr.h>
@@ -188,12 +189,33 @@ namespace
         return llformat("XrResult %d", (S32)result);
     }
 
+    // Phase 8: the mouse drives a pointer that can leave the panel (into the
+    // world around it): reach = PATVRPointerReach x the panel size on each side.
+    bool sVirtualPointer = false;
+    void setVirtualPointer(bool enable)
+    {
+        if (!gViewerWindow || !gViewerWindow->getWindow())
+        {
+            sVirtualPointer = false;
+            return;
+        }
+        static LLCachedControl<F32> reach(gSavedSettings, "PATVRPointerReach", 1.f);
+        const S32 w = gViewerWindow->getWindowWidthRaw(), h = gViewerWindow->getWindowHeightRaw();
+        const F32 r = llclamp((F32)reach, 0.f, 3.f);
+        const S32 mx = ll_round(w * r), my = ll_round(h * r);
+        if (enable || sVirtualPointer)
+        {
+            gViewerWindow->getWindow()->setVirtualPointer(enable, -mx, -my, w - 1 + mx, h - 1 + my);
+        }
+        sVirtualPointer = enable;
+    }
+
     // Release everything in reverse order. Safe to call in any state.
     void destroyAll(bool viewer_shutdown = false)
     {
         const bool ui_was_active = sXR.uiActive;
         PATXRUI::release();
-        PATXRPlatform::confineMouse(false);
+        setVirtualPointer(false);
         PATXRStereo::release(viewer_shutdown);
         PATXRKeyboard::release();
         PATXRHands::release();
@@ -1027,6 +1049,10 @@ namespace
                     {
                         PATXRUI::drawInEye(sXR.views[i], eye.images[index].image, eye.width, eye.height);
                     }
+                    if (ui)
+                    {
+                        PATXRUI::drawWorldPointer(sXR.views[i], eye.images[index].image, eye.width, eye.height);
+                    }
                     releaseImage(eye);
 
                     // The pose the image was rendered with: the compositor reprojects
@@ -1112,8 +1138,6 @@ namespace
         {
             sXR.uiActive = active;
             PATXRUI::setActive(active);
-            static LLCachedControl<bool> confine(gSavedSettings, "PATVRConfineMouse", true);
-            PATXRPlatform::confineMouse(active && confine);
             sXR.uiScale = PATXRUI::uiScale();
             if (gViewerWindow)
             {
@@ -1129,6 +1153,8 @@ namespace
                 gViewerWindow->requestResolutionUpdate();
             }
         }
+        static LLCachedControl<bool> virtual_pointer(gSavedSettings, "PATVRConfineMouse", true);
+        setVirtualPointer(active && virtual_pointer); // every frame: bounds follow the window size
     }
 
     // Ctrl+Shift+V and "hold Escape" read the raw key state, so they work with
@@ -1268,10 +1294,10 @@ void PATXRSession::frame()
     updateUIState(want);
     {
         XrVector3f origin, at, up;
-        F32 vfov = 0.f, aspect = 1.f;
-        if (sXR.uiActive && sXR.eyesRendered && PATXRUI::pointerCamera(origin, at, up, vfov, aspect))
+        F32 vfov = 0.f, aspect = 1.f, ndc_x = 0.f, ndc_y = 0.f;
+        if (sXR.uiActive && sXR.eyesRendered && PATXRUI::pointerCamera(origin, at, up, vfov, aspect, ndc_x, ndc_y))
         {
-            PATXRStereo::setPointerCamera(origin, at, up, vfov, aspect);
+            PATXRStereo::setPointerCamera(origin, at, up, vfov, aspect, ndc_x, ndc_y);
         }
     }
 
@@ -1418,6 +1444,41 @@ F32 PATXRSession::uiScale()
     return PATXRUI::uiScale();
 }
 
+bool PATXRSession::pointerBeyondWindow()
+{
+    return sXR.uiActive && sVirtualPointer;
+}
+
+PATXRSession::PointerCamera::PointerCamera()
+{
+    XrVector3f origin, at, up;
+    F32 vfov = 0.f, aspect = 1.f, ndc_x = 0.f, ndc_y = 0.f;
+    if (sXR.uiActive && !PATXRStereo::pointerCameraActive() && !PATXRStereo::inEyes() &&
+        PATXRUI::pointerCamera(origin, at, up, vfov, aspect, ndc_x, ndc_y))
+    {
+        PATXRStereo::setPointerCamera(origin, at, up, vfov, aspect, ndc_x, ndc_y);
+        mActive = PATXRStereo::pointerCameraActive();
+    }
+}
+
+PATXRSession::PointerCamera::~PointerCamera()
+{
+    if (mActive)
+    {
+        PATXRStereo::restoreCamera();
+    }
+}
+
+void PATXRSession::offsetProjection(LLMatrix4& proj)
+{
+    PATXRStereo::offsetProjection(proj);
+}
+
+LLVector3 PATXRSession::nameTagDepth(const LLVector3& towards_camera)
+{
+    return sXR.uiActive ? towards_camera : LLVector3::zero;
+}
+
 void PATXRSession::shutdown()
 {
     sMonitorRunning = false;
@@ -1521,6 +1582,28 @@ void PATXRSession::mouseRayOriginGlobal(LLVector3d&)
 F32 PATXRSession::uiScale()
 {
     return 1.f;
+}
+
+bool PATXRSession::pointerBeyondWindow()
+{
+    return false;
+}
+
+PATXRSession::PointerCamera::PointerCamera()
+{
+}
+
+PATXRSession::PointerCamera::~PointerCamera()
+{
+}
+
+void PATXRSession::offsetProjection(LLMatrix4&)
+{
+}
+
+LLVector3 PATXRSession::nameTagDepth(const LLVector3&)
+{
+    return LLVector3::zero;
 }
 
 #endif // PAT_XR

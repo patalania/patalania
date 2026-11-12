@@ -44,8 +44,6 @@ namespace PATXRPlatform
     // next call), or nullptr with a readable reason in 'error'.
     const void* graphicsBinding(std::string& error);
 
-    // Keep the mouse inside the viewer window (VR: the pointer stays on the UI panel).
-    void confineMouse(bool confine);
 }
 
 #endif // PAT_XRSESSION_PLATFORM_H

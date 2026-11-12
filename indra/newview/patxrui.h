@@ -93,8 +93,12 @@ namespace PATXRUI
     // Pointer ray in the LOCAL space through window point (u, v) in 0..1 (GL: v = 0 at the bottom).
     bool rayRoom(F32 u, F32 v, XrVector3f& origin, XrVector3f& dir);
     // Camera for screen-space logic (manipulator highlights, rectangle select):
-    // on the panel axis at the head's distance, looking at the panel centre.
-    bool pointerCamera(XrVector3f& origin, XrVector3f& at, XrVector3f& up, F32& vfov, F32& aspect);
+    // at the eye centre, looking along the panel normal; the panel is an
+    // off-axis window of it, (ndc_x, ndc_y) = shift of the panel centre in NDC.
+    bool pointerCamera(XrVector3f& origin, XrVector3f& at, XrVector3f& up, F32& vfov, F32& aspect, F32& ndc_x, F32& ndc_y);
+    // Pointer outside the panel (virtual pointer beyond the window): drawn into
+    // the eye image on the plane of the panel, so the move panel <-> world is seamless.
+    void drawWorldPointer(const XrView& view, GLuint texture, S32 width, S32 height);
 
     // UI scale while the UI is on the panel (1 otherwise).
     F32 uiScale();
