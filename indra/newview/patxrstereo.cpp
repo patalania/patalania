@@ -45,6 +45,7 @@
 #include "llviewercontrol.h"
 #include "llviewerwindow.h"
 #include "llspatialpartition.h"
+#include "llsmoothstep.h"
 #include "llui.h"
 #include "llviewerjointattachment.h"
 #include "llvoavatarself.h"
@@ -161,9 +162,14 @@ namespace
     // Phase 9: pitch of the base camera. Normally only the yaw of the viewer
     // camera is used (level horizon, the head does the pitching). With the
     // camera focused on something else than the own avatar (Alt camera, Alt+E /
-    // Alt+C) its pitch towards the focus is taken over, optionally also the
-    // mouse pitch in mouselook. Smoothed, roll stays 0.
-    F32 sPitch = 0.f;           // radians, positive = looking up
+    // Alt+C) its pitch towards the focus is taken over exactly as the camera
+    // moves (user test: any lag made the object jump back into the centre when
+    // the key was released). Optionally also the mouse pitch in mouselook
+    // (smoothed there). Only entering/leaving these modes blends the pitch in
+    // or out (weight 0..1 over a short time) so a mode switch does not jump.
+    // Roll stays 0.
+    F32 sPitchWeight = 0.f;     // 0 = level, 1 = camera pitch
+    F32 sMouselookPitch = 0.f;  // smoothed mouse pitch (mouselook)
     F64 sPitchTime = 0.0;
     constexpr F32 MAX_PITCH = 80.f * DEG_TO_RAD;
 
@@ -172,19 +178,31 @@ namespace
         static LLCachedControl<bool> focus_pitch(gSavedSettings, "PATVRFocusPitch", true);
         static LLCachedControl<bool> mouselook_pitch(gSavedSettings, "PATVRMouselookMousePitch", false);
         static LLCachedControl<F32> smoothing(gSavedSettings, "PATVRPitchSmoothing", 0.25f);
+        static LLCachedControl<F32> blend_time(gSavedSettings, "PATVRPitchBlendTime", 0.3f);
         const bool mouselook = gAgentCamera.cameraMouselook();
         const bool focus = !mouselook && !gAgentCamera.getFocusOnAvatar();
-        F32 target = 0.f;
-        if ((focus && focus_pitch) || (mouselook && mouselook_pitch))
-        {
-            target = llclamp(asinf(llclamp(cam_at.mV[VZ], -1.f, 1.f)), -MAX_PITCH, MAX_PITCH);
-        }
+        const bool active = (focus && focus_pitch) || (mouselook && mouselook_pitch);
+
         const F64 now = LLTimer::getTotalSeconds();
         const F32 dt = sPitchTime > 0.0 ? llclamp((F32)(now - sPitchTime), 0.f, 0.25f) : 1.f;
         sPitchTime = now;
+
+        const F32 cam_pitch = llclamp(asinf(llclamp(cam_at.mV[VZ], -1.f, 1.f)), -MAX_PITCH, MAX_PITCH);
         const F32 tau = llclamp((F32)smoothing, 0.f, 2.f);
-        sPitch = tau < 0.001f ? target : sPitch + (target - sPitch) * (1.f - expf(-dt / tau));
-        return sPitch;
+        if (mouselook)
+        {
+            sMouselookPitch = tau < 0.001f ? cam_pitch : sMouselookPitch + (cam_pitch - sMouselookPitch) * (1.f - expf(-dt / tau));
+        }
+        else
+        {
+            sMouselookPitch = cam_pitch;
+        }
+
+        const F32 t = llclamp((F32)blend_time, 0.f, 2.f);
+        const F32 step = t < 0.001f ? 1.f : dt / t;
+        sPitchWeight = active ? llmin(1.f, sPitchWeight + step) : llmax(0.f, sPitchWeight - step);
+        const F32 w = llsmoothstep(0.f, 1.f, sPitchWeight);
+        return w * (mouselook ? sMouselookPitch : cam_pitch);
     }
 
     glm::mat4 frustumOf(F32 tan_l, F32 tan_r, F32 tan_d, F32 tan_u, F32 n, F32 f)
@@ -377,7 +395,7 @@ bool PATXRStereo::init(S32 width, S32 height)
     sInitialised = true;
     sHaveRef = false;
     sEyeFrames = 0;
-    sPitch = 0.f;
+    sPitchWeight = 0.f;
     sPitchTime = 0.0;
     LL_INFOS("PATXR") << "Stereo rendering ready: " << sW << "x" << sH << " per eye" << LL_ENDL;
     return true;

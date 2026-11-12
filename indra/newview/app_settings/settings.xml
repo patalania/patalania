@@ -27258,13 +27258,24 @@ Change of this parameter will affect the layout of buttons in notification toast
     <key>PATVRPitchSmoothing</key>
     <map>
       <key>Comment</key>
-      <string>&lt;PAT:XR&gt; VR: time constant in seconds for taking over the camera pitch (PATVRFocusPitch, PATVRMouselookMousePitch); 0 = immediate.</string>
+      <string>&lt;PAT:XR&gt; VR mouselook: time constant in seconds for taking over the mouse pitch (PATVRMouselookMousePitch); 0 = immediate. The focus pitch (PATVRFocusPitch) is never smoothed.</string>
       <key>Persist</key>
       <integer>1</integer>
       <key>Type</key>
       <string>F32</string>
       <key>Value</key>
       <real>0.25</real>
+    </map>
+    <key>PATVRPitchBlendTime</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: seconds to blend the camera pitch in or out when the Alt/focus camera or mouselook pitch starts or ends (no jump on a mode switch).</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>F32</string>
+      <key>Value</key>
+      <real>0.3</real>
     </map>
     <key>PATVRNameTagFullSizeDistance</key>
     <map>

@@ -43,6 +43,7 @@
 #include "llgl.h"
 #include "llkeyboard.h"
 #include "llmanip.h"
+#include "llviewershadermgr.h"
 #include "llnotificationsutil.h"
 #include "llstartup.h"
 #include "llviewercontrol.h"
@@ -1398,7 +1399,20 @@ void PATXRSession::endUI()
         sXYZPending = false;
         if (PATXRUI::capturing())
         {
+            // The desktop draws it inside render_hud_elements() with the UI shader
+            // bound; here (after the 2D UI) no shader may be bound.
+            LLGLSLShader* prev = LLGLSLShader::sCurBoundShaderPtr;
+            gUIProgram.bind();
             LLManip::renderXYZ(sXYZ);
+            gGL.flush();
+            if (prev)
+            {
+                prev->bind();
+            }
+            else
+            {
+                gUIProgram.unbind();
+            }
         }
     }
     PATXRUI::endCapture();
