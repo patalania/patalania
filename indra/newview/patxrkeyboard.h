@@ -26,25 +26,32 @@
 #define PAT_XRKEYBOARD_H
 
 #include <openxr/openxr.h>
-#include <vector>
+
+#include "patxrhands.h"
 
 // How it works (WiVRn): the session submits frames with
 // XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND; WiVRn streams the alpha channel and the
 // headset shows its camera image wherever alpha is 0. So we draw the keyboard
 // area (a horizontal rectangle anchored in the LOCAL space) with alpha 0.
 // No chroma key and no runtime configuration needed. Platform neutral (OpenGL).
+//
+// Placement: WiVRn's LOCAL origin/yaw is not the head at session start, so the
+// default window is placed relative to the first head pose (below and in front,
+// turned to the viewing direction). As soon as both hands rest ~1 s at a similar
+// height, the window is moved onto them (centre, height, direction, width) and
+// stays anchored in the room. Ctrl+Shift+Backspace measures again.
 namespace PATXRKeyboard
 {
-    // Handle the test shortcuts (Ctrl+Shift + arrows/PgUp/PgDn/Home/End/Ins/Del,
-    // Ctrl+Shift+Backspace = reset). Called once per frame.
-    void update(F32 dt);
+    // Placement + test shortcuts (Ctrl+Shift + arrows/PgUp/PgDn/Home/End/Ins/Del,
+    // Ctrl+Shift+Backspace = measure again). Called once per frame with both eye poses.
+    void update(F32 dt, const XrPosef& left_eye, const XrPosef& right_eye, const PATXRPalm palms[2]);
 
     // Draw into the currently bound framebuffer (viewport already set):
     // white frame + transparent keyboard window, plus a transparent square
     // around each tracked palm that is near desk height.
-    void draw(const XrView& view, const std::vector<XrVector3f>& palms);
+    void draw(const XrView& view, const PATXRPalm palms[2]);
 
-    // Release GL objects (GL context current).
+    // Release GL objects and forget the placement (GL context current).
     void release();
 }
 

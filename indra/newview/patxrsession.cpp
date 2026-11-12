@@ -79,7 +79,8 @@ namespace
         U64 frames = 0;
         bool handExt = false;
         F64 lastFrameTime = 0.0;
-        std::vector<XrVector3f> palms;
+        PATXRPalm palms[2];
+        F32 lastDt = 0.f;
     };
 
     XRState sXR;
@@ -655,6 +656,7 @@ namespace
             if (views_valid)
             {
                 PATXRHands::locate(sXR.space, frame_state.predictedDisplayTime, sXR.palms);
+                PATXRKeyboard::update(sXR.lastDt, views[0].pose, views[1].pose, sXR.palms);
                 for (U32 i = 0; i < 2; ++i)
                 {
                     EyeSwapchain& eye = sXR.eyes[i];
@@ -804,7 +806,7 @@ void PATXRSession::frame()
         const F64 now = LLTimer::getTotalSeconds();
         const F32 dt = sXR.lastFrameTime > 0.0 ? (F32)(now - sXR.lastFrameTime) : 0.f;
         sXR.lastFrameTime = now;
-        PATXRKeyboard::update(dt);
+        sXR.lastDt = dt;
         renderFrame();
     }
 }

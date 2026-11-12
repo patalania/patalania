@@ -78,9 +78,10 @@ void PATXRHands::init(XrInstance instance, XrSystemId system, XrSession session,
     LL_INFOS("PATXR") << "Hand tracking: supported, trackers created" << LL_ENDL;
 }
 
-void PATXRHands::locate(XrSpace space, XrTime time, std::vector<XrVector3f>& palms)
+void PATXRHands::locate(XrSpace space, XrTime time, PATXRPalm palms[2])
 {
-    palms.clear();
+    palms[0] = PATXRPalm();
+    palms[1] = PATXRPalm();
     if (!sLocate)
     {
         return;
@@ -105,7 +106,8 @@ void PATXRHands::locate(XrSpace space, XrTime time, std::vector<XrVector3f>& pal
         const bool active = ok && locations.isActive && (palm.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT);
         if (active)
         {
-            palms.push_back(palm.pose.position);
+            palms[i].valid = true;
+            palms[i].pos = palm.pose.position;
             ++sActiveFrames[i];
         }
         if (active != sLastActive[i] || (log_now && active))

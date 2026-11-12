@@ -28,13 +28,19 @@
 #include <openxr/openxr.h>
 #include <vector>
 
+struct PATXRPalm
+{
+    bool valid = false;
+    XrVector3f pos{ 0.f, 0.f, 0.f };
+};
+
 namespace PATXRHands
 {
     // Creates hand trackers if the extension was enabled and the system supports them.
     void init(XrInstance instance, XrSystemId system, XrSession session, bool extension_enabled);
 
-    // Palm positions (in 'space') of all currently tracked hands; logs the state periodically.
-    void locate(XrSpace space, XrTime time, std::vector<XrVector3f>& palms);
+    // Palm positions (in 'space'), [0] = left, [1] = right; logs the state periodically.
+    void locate(XrSpace space, XrTime time, PATXRPalm palms[2]);
 
     void release();
 }
