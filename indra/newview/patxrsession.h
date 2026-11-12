@@ -35,6 +35,7 @@
 class LLColor4;
 class LLFontGL;
 class LLVector3;
+class LLVector3d;
 
 class PATXRSession
 {
@@ -69,6 +70,27 @@ public:
     static bool pixelVectors(const LLVector3& pos_agent, LLVector3& up, LLVector3& right);
     static bool drawHudText(const LLWString& text, const LLVector3& pos_agent, const LLVector3& right_axis,
                             const LLVector3& up_axis, const LLFontGL& font, U8 style, S32 shadow, const LLColor4& color);
+
+    // Phase 8, the UI on a panel in VR (patxrui.h); all no-ops outside VR:
+    // top of display(): Firestorm's own camera back (between two frames the
+    // camera follows the UI panel, see PATXRStereo::setPointerCamera).
+    static void beforeDisplay();
+    // render_ui(): HUD attachments and the 2D UI go into the panel texture.
+    static void beginUI();
+    static void endUI();
+    // render_ui(): true while the UI goes into the panel; 3D overlays drawn on
+    // the screen (name tags, hover text) are skipped there, the eyes have them.
+    static bool uiOnPanel();
+    // LLViewerWindow::mouseDirectionGlobal(): direction of the ray from the eye
+    // centre through the panel point under window position x, y (scaled UI px).
+    static bool mouseDirection(S32 x, S32 y, LLVector3& dir);
+    // LLViewerWindow::cursorIntersect(): ray start = eye centre, near plane
+    // across the ray (agent frame).
+    static void mouseRayStart(LLVector3& origin, LLVector3& near_normal, const LLVector3& dir);
+    // LLViewerWindow::mousePointOnPlaneGlobal/mousePointOnLandGlobal: ray start (global).
+    static void mouseRayOriginGlobal(LLVector3d& origin);
+    // LLViewerWindow::calcDisplayScale(): extra UI scale while the UI is on the panel.
+    static F32 uiScale();
 };
 
 #endif // PAT_XRSESSION_H

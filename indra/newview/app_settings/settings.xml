@@ -27211,6 +27211,165 @@ Change of this parameter will affect the layout of buttons in notification toast
       <key>Value</key>
       <integer>0</integer>
     </map>
+    <key>PATVRUIQuadLayer</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: show the UI panel as an OpenXR quad layer (sharper text). Off: the panel is drawn into the eye images.</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>Boolean</string>
+      <key>Value</key>
+      <integer>1</integer>
+    </map>
+    <key>PATVRUIScale</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: UI scale while the UI is on the panel (multiplies UIScaleFactor; larger = easier to read, less room).</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>F32</string>
+      <key>Value</key>
+      <real>1.75</real>
+    </map>
+    <key>PATVRUIWidth</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: width of the UI panel in metres (Ctrl+Shift+Alt+Home/End). The height follows the window shape.</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>F32</string>
+      <key>Value</key>
+      <real>1.8</real>
+    </map>
+    <key>PATVRUIDistance</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: distance of the UI panel from the eyes in metres when it is placed (Ctrl+Shift+Space).</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>F32</string>
+      <key>Value</key>
+      <real>1.2</real>
+    </map>
+    <key>PATVRUIDrop</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: the centre of the UI panel is this many metres below eye height when it is placed.</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>F32</string>
+      <key>Value</key>
+      <real>0.1</real>
+    </map>
+    <key>PATVRCursorScale</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: size of the mouse pointer on the UI panel (1 = as large as on the monitor, with the panel UI scale).</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>F32</string>
+      <key>Value</key>
+      <real>1.0</real>
+    </map>
+    <key>PATVRConfineMouse</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: keep the mouse inside the viewer window, so the pointer stays on the UI panel.</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>Boolean</string>
+      <key>Value</key>
+      <integer>1</integer>
+    </map>
+    <key>PATVRKeyboardCalibrated</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: a keyboard passthrough window was placed on the hands; the values below are used at the next start.</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>Boolean</string>
+      <key>Value</key>
+      <integer>0</integer>
+    </map>
+    <key>PATVRKeyboardCenter</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: keyboard window centre from the hands (OpenXR LOCAL space, metres).</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>Vector3</string>
+      <key>Value</key>
+      <array>
+        <real>0.0</real>
+        <real>0.0</real>
+        <real>0.0</real>
+      </array>
+    </map>
+    <key>PATVRKeyboardYaw</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: keyboard window direction from the hands (degrees about the vertical axis).</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>F32</string>
+      <key>Value</key>
+      <real>0.0</real>
+    </map>
+    <key>PATVRKeyboardSize</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: keyboard window width and depth from the hands (metres).</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>Vector3</string>
+      <key>Value</key>
+      <array>
+        <real>0.46</real>
+        <real>0.18</real>
+        <real>0.0</real>
+      </array>
+    </map>
+    <key>PATVRKeyboardAdjustPos</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: manual shift of the keyboard window (metres: along the keyboard, up, towards the user).</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>Vector3</string>
+      <key>Value</key>
+      <array>
+        <real>0.0</real>
+        <real>0.0</real>
+        <real>0.0</real>
+      </array>
+    </map>
+    <key>PATVRKeyboardAdjustYawSize</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: manual turn (degrees), extra width and extra depth (metres) of the keyboard window.</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>Vector3</string>
+      <key>Value</key>
+      <array>
+        <real>0.0</real>
+        <real>0.0</real>
+        <real>0.0</real>
+      </array>
+    </map>
     <key>PATDisclaimerAccepted</key>
     <map>
       <key>Comment</key>

@@ -35,15 +35,21 @@
 // area (a horizontal rectangle anchored in the LOCAL space) with alpha 0.
 // No chroma key and no runtime configuration needed. Platform neutral (OpenGL).
 //
-// Placement: WiVRn's LOCAL origin/yaw is not the head at session start, so the
-// default window is placed relative to the first head pose (below and in front,
-// turned to the viewing direction). As soon as both hands rest ~1 s at a similar
-// height, the window is moved onto them (centre, height, direction, width) and
-// stays anchored in the room. Ctrl+Shift+Backspace measures again.
+// Placement: until the hands have been seen, the window sits below and in front
+// of the head (or where it was calibrated last time, if that fits the current
+// head position). When both hands rest ~1 s at a similar height on the
+// keyboard, the window moves onto them: centre, height, direction (line between
+// the hands, checked against the direction of the fingers; a hand on the mouse
+// is ignored) and width. Later resting periods near the window let it follow
+// softly. Manual adjustments (shortcuts below) stay on top of that.
+//
+// Shortcuts (hold Ctrl+Shift):
+//   arrows        move left/right, away/closer      PgUp/PgDn   higher/lower
+//   Home/End      turn left/right                   Ins/Del     wider/narrower
+//   Alt+PgUp/PgDn deeper/shallower                  Backspace   measure again
 namespace PATXRKeyboard
 {
-    // Placement + test shortcuts (Ctrl+Shift + arrows/PgUp/PgDn/Home/End/Ins/Del,
-    // Ctrl+Shift+Backspace = measure again). Called once per frame with both eye poses.
+    // Placement + shortcuts. Called once per frame with both eye poses.
     void update(F32 dt, const XrPosef& left_eye, const XrPosef& right_eye, const PATXRPalm palms[2]);
 
     // Draw into the currently bound framebuffer (viewport already set):

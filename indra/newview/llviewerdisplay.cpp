@@ -491,6 +491,7 @@ void display(bool rebuild, F32 zoom_factor, int subfield, bool for_snapshot)
     LLPerfStats::RecordSceneTime T (LLPerfStats::StatType_t::RENDER_DISPLAY); // render time capture - This is the main stat for overall rendering.
 
     LLViewerCamera& camera = LLViewerCamera::instance(); // <FS:Ansariel> Factor out calls to getInstance
+    PATXRSession::beforeDisplay(); // <PAT:XR/> VR: Firestorm's camera back (between frames it follows the UI panel)
 
     if (gWindowResized)
     { //skip render on frames where window has been resized
@@ -1655,6 +1656,7 @@ void render_ui(F32 zoom_factor, int subfield)
         }
 // [/RLVa:KB]
         LLGLState::checkStates();
+        PATXRSession::beginUI(); // <PAT:XR/> VR: HUDs and the 2D UI go into the panel texture
         render_hud_attachments();
 
         LLGLState::checkStates();
@@ -1689,6 +1691,7 @@ void render_ui(F32 zoom_factor, int subfield)
         if (render_ui)
         {
             LL_PROFILE_ZONE_NAMED_CATEGORY_UI("UI 2D"); //LL_RECORD_BLOCK_TIME(FTM_RENDER_UI_2D);
+            if (!PATXRSession::uiOnPanel()) // <PAT:XR/> VR: name tags are drawn in the eyes, not on the panel
             LLHUDObject::renderAll();
             render_ui_2d();
         }
@@ -1703,6 +1706,7 @@ void render_ui(F32 zoom_factor, int subfield)
         gViewerWindow->setup2DRender();
         gViewerWindow->updateDebugText();
         gViewerWindow->drawDebugText();
+        PATXRSession::endUI(); // <PAT:XR/> VR: panel texture done, shown on the monitor as before
     }
 
     if (!gSnapshot)

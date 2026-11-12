@@ -32,6 +32,9 @@ struct PATXRPalm
 {
     bool valid = false;
     XrVector3f pos{ 0.f, 0.f, 0.f };
+    // Palm orientation (OpenXR hand joint: -Z points towards the fingers, +Y out of the back of the hand).
+    bool orientationValid = false;
+    XrQuaternionf orientation{ 0.f, 0.f, 0.f, 1.f };
 };
 
 namespace PATXRHands

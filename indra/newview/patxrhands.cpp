@@ -108,6 +108,8 @@ void PATXRHands::locate(XrSpace space, XrTime time, PATXRPalm palms[2])
         {
             palms[i].valid = true;
             palms[i].pos = palm.pose.position;
+            palms[i].orientationValid = (palm.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) != 0;
+            palms[i].orientation = palm.pose.orientation;
             ++sActiveFrames[i];
         }
         if (active != sLastActive[i] || (log_now && active))

@@ -83,6 +83,19 @@ namespace PATXRStereo
     // Hook 3 (top of renderFinalize). True = desktop mirror drawn, skip the rest.
     bool drawDesktopMirror();
 
+    // Phase 8: LOCAL space -> agent frame, with the mapping of the last rendered
+    // frame (viewer camera x head reference). False before the first eye frame.
+    bool roomPointToAgent(const XrVector3f& p, LLVector3& out);
+    bool roomDirToAgent(const XrVector3f& d, LLVector3& out);
+
+    // Between two frames (input handling, idle) LLViewerCamera is the pointer
+    // camera of the UI panel, so that screen-space logic of the tools
+    // (manipulator highlights, rectangle selection, hover) matches what the
+    // pointer covers in the headset. restoreCamera() at the start of display()
+    // gives Firestorm its own camera back before it computes the next one.
+    void setPointerCamera(const XrVector3f& origin, const XrVector3f& at, const XrVector3f& up, F32 vfov, F32 aspect);
+    void restoreCamera();
+
     // Copy eye 'eye' into an OpenXR swapchain image (GL texture) of the same size.
     void copyToSwapchain(U32 eye, GLuint texture, S32 width, S32 height);
 

@@ -114,6 +114,12 @@ namespace
     F32 sRefYaw = 0.f;
 
     BaseCamera sBase;
+    // Mapping LOCAL space -> agent frame of the last eye frame (phase 8 rays).
+    bool sHaveMap = false;
+    LLVector3 sMapBase, sMapFwd, sMapLeft;
+    // Firestorm's camera while the pointer camera is set between frames.
+    bool sPointerCamera = false;
+    BaseCamera sSavedCamera;
     LLRect sWindowWorldRect;
     glm::mat4 sProj[2];
     glm::mat4 sView[2];
@@ -348,6 +354,7 @@ bool PATXRStereo::init(S32 width, S32 height)
 void PATXRStereo::resetReference()
 {
     sHaveRef = false;
+    sHaveMap = false;
 }
 
 bool PATXRStereo::beginEyes(const XrView views[2])
@@ -357,6 +364,9 @@ bool PATXRStereo::beginEyes(const XrView views[2])
         return false;
     }
     LLViewerCamera& cam = LLViewerCamera::instance();
+    // The pointer camera must have been restored at the start of display();
+    // never restore it later over the camera Firestorm computed for this frame.
+    sPointerCamera = false;
 
     // Reference: head pose at the first frame (WiVRn's LOCAL origin is not the head).
     const Vec3 centre = { (views[0].pose.position.x + views[1].pose.position.x) * 0.5f,
@@ -411,6 +421,10 @@ bool PATXRStereo::beginEyes(const XrView views[2])
         }
     }
     const LLVector3 left = LLVector3::z_axis % fwd;
+    sMapBase = eye_base;
+    sMapFwd = fwd;
+    sMapLeft = left;
+    sHaveMap = true;
 
     // Eye poses in the agent frame; frusta from the runtime's (asymmetric) FOV.
     const F32 z_near = cam.getNear();
@@ -653,6 +667,71 @@ bool PATXRStereo::drawDesktopMirror()
     return true;
 }
 
+bool PATXRStereo::roomPointToAgent(const XrVector3f& p, LLVector3& out)
+{
+    if (!sHaveMap || !sHaveRef)
+    {
+        return false;
+    }
+    out = sMapBase + toWorld(unyaw({ p.x - sRefPos.x, p.y - sRefPos.y, p.z - sRefPos.z }), sMapFwd, sMapLeft);
+    return true;
+}
+
+bool PATXRStereo::roomDirToAgent(const XrVector3f& d, LLVector3& out)
+{
+    if (!sHaveMap || !sHaveRef)
+    {
+        return false;
+    }
+    out = toWorld(unyaw({ d.x, d.y, d.z }), sMapFwd, sMapLeft);
+    out.normVec();
+    return true;
+}
+
+void PATXRStereo::setPointerCamera(const XrVector3f& origin, const XrVector3f& at, const XrVector3f& up, F32 vfov, F32 aspect)
+{
+    LLVector3 o, a, u;
+    if (sInEyes || !roomPointToAgent(origin, o) || !roomDirToAgent(at, a) || !roomDirToAgent(up, u))
+    {
+        return;
+    }
+    LLViewerCamera& cam = LLViewerCamera::instance();
+    if (!sPointerCamera)
+    {
+        sSavedCamera.origin = cam.getOrigin();
+        sSavedCamera.at = cam.getAtAxis();
+        sSavedCamera.left = cam.getLeftAxis();
+        sSavedCamera.up = cam.getUpAxis();
+        sSavedCamera.view = cam.getView();
+        sSavedCamera.aspect = cam.getAspect();
+        sSavedCamera.height = cam.getViewHeightInPixels();
+        sPointerCamera = true;
+    }
+    LLVector3 left = u % a;
+    left.normVec();
+    u = a % left;
+    u.normVec();
+    cam.setOrigin(o);
+    cam.setAxes(a, left, u);
+    cam.setViewNoBroadcast(llclamp(vfov, 0.1f, 2.5f));
+    cam.setAspect(llclamp(aspect, 0.2f, 5.f));
+}
+
+void PATXRStereo::restoreCamera()
+{
+    if (!sPointerCamera)
+    {
+        return;
+    }
+    sPointerCamera = false;
+    LLViewerCamera& cam = LLViewerCamera::instance();
+    cam.setOrigin(sSavedCamera.origin);
+    cam.setAxes(sSavedCamera.at, sSavedCamera.left, sSavedCamera.up);
+    cam.setViewNoBroadcast(sSavedCamera.view);
+    cam.setAspect(sSavedCamera.aspect);
+    cam.setViewHeightInPixels(sSavedCamera.height);
+}
+
 void PATXRStereo::copyToSwapchain(U32 eye, GLuint texture, S32 width, S32 height)
 {
     GLint old_read = 0, old_draw = 0;
@@ -699,7 +778,10 @@ void PATXRStereo::release(bool viewer_shutdown)
     if (!viewer_shutdown)
     {
         abort();
+        restoreCamera();
     }
+    sPointerCamera = false;
+    sHaveMap = false;
     sInEyes = false;
     sMirrorPending = false;
     for (LLRenderTarget& rt : sEyeRT)

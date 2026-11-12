@@ -37,11 +37,15 @@
 #include "patxrhands.h"
 #include "patxrkeyboard.h"
 #include "patxrstereo.h"
+#include "patxrui.h"
 
+#include "llagent.h"
 #include "llgl.h"
 #include "llkeyboard.h"
 #include "llnotificationsutil.h"
+#include "llstartup.h"
 #include "llviewercontrol.h"
+#include "llviewerwindow.h"
 
 #define XR_USE_GRAPHICS_API_OPENGL
 #include <openxr/openxr.h>
@@ -128,6 +132,12 @@ namespace
         XrSessionState state = XR_SESSION_STATE_UNKNOWN;
         XrEnvironmentBlendMode blendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
         EyeSwapchain eyes[2];
+        EyeSwapchain ui;             // phase 8: UI panel as quad layer
+        int64_t format = 0;
+        bool uiActive = false;       // UI goes into the panel
+        F32 uiScale = 1.f;
+        bool lastQuadValid = false;
+        XrCompositionLayerQuad lastQuad{ XR_TYPE_COMPOSITION_LAYER_QUAD };
         GLuint fbo = 0;
         bool running = false;       // between xrBeginSession and xrEndSession
         bool stopRequested = false; // we asked the runtime to end the session
@@ -181,6 +191,9 @@ namespace
     // Release everything in reverse order. Safe to call in any state.
     void destroyAll(bool viewer_shutdown = false)
     {
+        const bool ui_was_active = sXR.uiActive;
+        PATXRUI::release();
+        PATXRPlatform::confineMouse(false);
         PATXRStereo::release(viewer_shutdown);
         PATXRKeyboard::release();
         PATXRHands::release();
@@ -197,6 +210,10 @@ namespace
             }
             eye = EyeSwapchain();
         }
+        if (sXR.ui.handle != XR_NULL_HANDLE)
+        {
+            xrDestroySwapchain(sXR.ui.handle);
+        }
         if (sXR.space != XR_NULL_HANDLE)
         {
             xrDestroySpace(sXR.space);
@@ -211,6 +228,10 @@ namespace
             LL_INFOS("PATXR") << "OpenXR stopped after " << sXR.frames << " frames" << LL_ENDL;
         }
         sXR = XRState();
+        if (ui_was_active && !viewer_shutdown && gViewerWindow)
+        {
+            gViewerWindow->requestResolutionUpdate(); // UI scale back to the desktop value
+        }
     }
 
     // Leave VR: release OpenXR, switch the setting off and tell the user why.
@@ -496,6 +517,7 @@ namespace
         {
             return error;
         }
+        sXR.format = format;
         for (uint32_t i = 0; i < 2; ++i)
         {
             EyeSwapchain& eye = sXR.eyes[i];
@@ -543,6 +565,7 @@ namespace
         PATXRHands::init(sXR.instance, sXR.system, sXR.session, hand_ext);
 
         glGenFramebuffers(1, &sXR.fbo);
+        PATXRUI::init();
         if (!PATXRStereo::init(sXR.eyes[0].width, sXR.eyes[0].height))
         {
             return "Not enough video memory for the eye images (try a lower PATVRResolutionScale)";
@@ -601,6 +624,7 @@ namespace
                 // Recentred in the headset: the head reference must be taken again.
                 LL_INFOS("PATXR") << "Reference space changed (recentred)" << LL_ENDL;
                 PATXRStereo::resetReference();
+                PATXRUI::recentre();
                 break;
 
             case XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING:
@@ -774,13 +798,17 @@ namespace
         {
             PATXRHands::locate(sXR.space, sXR.frameState.predictedDisplayTime, sXR.palms);
             PATXRKeyboard::update(sXR.lastDt, sXR.views[0].pose, sXR.views[1].pose, sXR.palms);
+            PATXRUI::update(sXR.lastDt, sXR.views[0].pose, sXR.views[1].pose);
         }
     }
 
-    bool endFrame(const XrCompositionLayerProjectionView* proj_views, XrTime display_time)
+    // World (projection layer) and UI panel (quad layer, phase 8), both optional.
+    bool endFrame(const XrCompositionLayerProjectionView* proj_views, XrTime display_time,
+                  const XrCompositionLayerQuad* quad = nullptr)
     {
         XrCompositionLayerProjection layer{ XR_TYPE_COMPOSITION_LAYER_PROJECTION };
-        const XrCompositionLayerBaseHeader* layers[1] = { reinterpret_cast<XrCompositionLayerBaseHeader*>(&layer) };
+        const XrCompositionLayerBaseHeader* layers[2] = { nullptr, nullptr };
+        uint32_t layer_count = 0;
         if (proj_views)
         {
             layer.space = sXR.space;
@@ -788,12 +816,17 @@ namespace
                                XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT;
             layer.viewCount = 2;
             layer.views = proj_views;
+            layers[layer_count++] = reinterpret_cast<XrCompositionLayerBaseHeader*>(&layer);
+        }
+        if (quad)
+        {
+            layers[layer_count++] = reinterpret_cast<const XrCompositionLayerBaseHeader*>(quad);
         }
         XrFrameEndInfo fei{ XR_TYPE_FRAME_END_INFO };
         fei.displayTime = display_time;
         fei.environmentBlendMode = sXR.blendMode;
-        fei.layerCount = proj_views ? 1 : 0;
-        fei.layers = proj_views ? layers : nullptr;
+        fei.layerCount = layer_count;
+        fei.layers = layer_count ? layers : nullptr;
         XrResult res;
         {
             RuntimeCall call("xrEndFrame");
@@ -832,8 +865,107 @@ namespace
         sXR.statsEyeSeconds = sXR.statsEyeMax = 0.0;
     }
 
+    // Acquire + wait for a swapchain image. 1 = image ready (index), 0 = the
+    // runtime still holds it (try again next frame), -1 = failed (VR left).
+    S32 acquireImage(EyeSwapchain& sc, uint32_t& index)
+    {
+        // An image acquired earlier whose wait timed out is waited for again
+        // instead of acquiring another one.
+        if (sc.pending < 0)
+        {
+            uint32_t acquired = 0;
+            XrSwapchainImageAcquireInfo ai{ XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO };
+            XrResult res;
+            {
+                RuntimeCall call("xrAcquireSwapchainImage");
+                res = xrAcquireSwapchainImage(sc.handle, &ai, &acquired);
+            }
+            if (XR_FAILED(res))
+            {
+                fallBackToDesktop("PatVRStopped", "xrAcquireSwapchainImage failed: " + resultString(res));
+                return -1;
+            }
+            sc.pending = (S32)acquired;
+        }
+        XrSwapchainImageWaitInfo wi{ XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO };
+        wi.timeout = SWAPCHAIN_WAIT_TIMEOUT;
+        XrResult res;
+        {
+            RuntimeCall call("xrWaitSwapchainImage");
+            res = xrWaitSwapchainImage(sc.handle, &wi);
+        }
+        if (res == XR_TIMEOUT_EXPIRED)
+        {
+            if (sXR.swapchainTimeouts++ % 50 == 0)
+            {
+                LL_WARNS("PATXR") << "Swapchain image not available in time (" << sXR.swapchainTimeouts << "x)" << LL_ENDL;
+            }
+            return 0;
+        }
+        if (XR_FAILED(res))
+        {
+            fallBackToDesktop("PatVRStopped", "xrWaitSwapchainImage failed: " + resultString(res));
+            return -1;
+        }
+        index = (uint32_t)sc.pending;
+        sc.pending = -1;
+        return 1;
+    }
+
+    void releaseImage(EyeSwapchain& sc)
+    {
+        XrSwapchainImageReleaseInfo ri{ XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO };
+        xrReleaseSwapchainImage(sc.handle, &ri);
+    }
+
+    // Quad-layer swapchain of the UI panel's size (recreated when the window size changes).
+    bool ensureUISwapchain(S32 width, S32 height)
+    {
+        EyeSwapchain& ui = sXR.ui;
+        if (ui.handle != XR_NULL_HANDLE && ui.width == width && ui.height == height)
+        {
+            return true;
+        }
+        if (ui.handle != XR_NULL_HANDLE)
+        {
+            xrDestroySwapchain(ui.handle);
+        }
+        ui = EyeSwapchain();
+        sXR.lastQuadValid = false;
+        XrSwapchainCreateInfo swci{ XR_TYPE_SWAPCHAIN_CREATE_INFO };
+        swci.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_SAMPLED_BIT;
+        swci.format = sXR.format;
+        swci.sampleCount = 1;
+        swci.width = (uint32_t)width;
+        swci.height = (uint32_t)height;
+        swci.faceCount = 1;
+        swci.arraySize = 1;
+        swci.mipCount = 1;
+        XrResult res = xrCreateSwapchain(sXR.session, &swci, &ui.handle);
+        if (XR_FAILED(res))
+        {
+            LL_WARNS("PATXR") << "UI panel swapchain " << width << "x" << height << " failed: " << resultString(res) << LL_ENDL;
+            ui.handle = XR_NULL_HANDLE;
+            return false;
+        }
+        ui.width = width;
+        ui.height = height;
+        uint32_t count = 0;
+        xrEnumerateSwapchainImages(ui.handle, 0, &count, nullptr);
+        ui.images.assign(count, { XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR });
+        if (XR_FAILED(xrEnumerateSwapchainImages(ui.handle, count, &count, (XrSwapchainImageBaseHeader*)ui.images.data())))
+        {
+            xrDestroySwapchain(ui.handle);
+            ui = EyeSwapchain();
+            return false;
+        }
+        LL_INFOS("PATXR") << "UI panel quad layer swapchain " << width << "x" << height << ", " << count << " images" << LL_ENDL;
+        return true;
+    }
+
     // Submit the frame begun at the end of the previous iteration: the world
-    // image from display() if there is one, otherwise passthrough.
+    // image from display() if there is one, otherwise passthrough; the UI panel
+    // on top (quad layer, or drawn into both eye images).
     void submitFrame()
     {
         if (!sXR.frameOpen)
@@ -850,6 +982,8 @@ namespace
         XrCompositionLayerProjectionView proj_views[2] = { { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW },
                                                            { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW } };
         bool have_layer = false;
+        XrCompositionLayerQuad quad{ XR_TYPE_COMPOSITION_LAYER_QUAD };
+        bool have_quad = false;
         if (sXR.frameState.shouldRender)
         {
             if (!sXR.viewsLocated)
@@ -858,52 +992,28 @@ namespace
             }
             if (sXR.viewsValid)
             {
+                const bool ui = PATXRUI::hasImage();
+                const bool ui_quad = ui && PATXRUI::useQuadLayer();
+                if (ui)
+                {
+                    PATXRUI::prepare();
+                }
+
                 have_layer = true;
                 for (U32 i = 0; i < 2 && have_layer; ++i)
                 {
                     EyeSwapchain& eye = sXR.eyes[i];
-                    // An image acquired earlier whose wait timed out is waited for
-                    // again instead of acquiring another one.
-                    if (eye.pending < 0)
+                    uint32_t index = 0;
+                    const S32 got = acquireImage(eye, index);
+                    if (got < 0)
                     {
-                        uint32_t acquired = 0;
-                        XrSwapchainImageAcquireInfo ai{ XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO };
-                        XrResult res;
-                        {
-                            RuntimeCall call("xrAcquireSwapchainImage");
-                            res = xrAcquireSwapchainImage(eye.handle, &ai, &acquired);
-                        }
-                        if (XR_FAILED(res))
-                        {
-                            fallBackToDesktop("PatVRStopped", "xrAcquireSwapchainImage failed: " + resultString(res));
-                            return;
-                        }
-                        eye.pending = (S32)acquired;
-                    }
-                    XrSwapchainImageWaitInfo wi{ XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO };
-                    wi.timeout = SWAPCHAIN_WAIT_TIMEOUT;
-                    XrResult res;
-                    {
-                        RuntimeCall call("xrWaitSwapchainImage");
-                        res = xrWaitSwapchainImage(eye.handle, &wi);
-                    }
-                    if (res == XR_TIMEOUT_EXPIRED)
-                    {
-                        // Runtime still holds the image: show nothing new this frame.
-                        if (sXR.swapchainTimeouts++ % 50 == 0)
-                        {
-                            LL_WARNS("PATXR") << "Swapchain image not available in time (" << sXR.swapchainTimeouts << "x)" << LL_ENDL;
-                        }
-                        have_layer = false;
-                        break;
-                    }
-                    if (XR_FAILED(res))
-                    {
-                        fallBackToDesktop("PatVRStopped", "xrWaitSwapchainImage failed: " + resultString(res));
                         return;
                     }
-                    const uint32_t index = (uint32_t)eye.pending;
-                    eye.pending = -1;
+                    if (got == 0)
+                    {
+                        have_layer = false; // runtime still holds the image: nothing new this frame
+                        break;
+                    }
 
                     if (sXR.eyesRendered)
                     {
@@ -913,9 +1023,11 @@ namespace
                     {
                         drawPassthrough(eye, eye.images[index].image);
                     }
-
-                    XrSwapchainImageReleaseInfo ri{ XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO };
-                    xrReleaseSwapchainImage(eye.handle, &ri);
+                    if (ui && !ui_quad)
+                    {
+                        PATXRUI::drawInEye(sXR.views[i], eye.images[index].image, eye.width, eye.height);
+                    }
+                    releaseImage(eye);
 
                     // The pose the image was rendered with: the compositor reprojects
                     // from it to the real head pose at display time.
@@ -926,10 +1038,27 @@ namespace
                     proj_views[i].subImage.imageRect.extent = { eye.width, eye.height };
                     proj_views[i].subImage.imageArrayIndex = 0;
                 }
+
+                if (ui_quad && ensureUISwapchain(PATXRUI::imageWidth(), PATXRUI::imageHeight()))
+                {
+                    uint32_t index = 0;
+                    const S32 got = acquireImage(sXR.ui, index);
+                    if (got < 0)
+                    {
+                        return;
+                    }
+                    if (got > 0)
+                    {
+                        PATXRUI::copyToSwapchain(sXR.ui.images[index].image, sXR.ui.width, sXR.ui.height);
+                        releaseImage(sXR.ui);
+                        PATXRUI::fillQuadLayer(quad, sXR.space, sXR.ui.handle);
+                        have_quad = true;
+                    }
+                }
             }
         }
 
-        if (!endFrame(have_layer ? proj_views : nullptr, sXR.frameState.predictedDisplayTime))
+        if (!endFrame(have_layer ? proj_views : nullptr, sXR.frameState.predictedDisplayTime, have_quad ? &quad : nullptr))
         {
             return;
         }
@@ -943,6 +1072,11 @@ namespace
         {
             sXR.lastViews[0] = proj_views[0];
             sXR.lastViews[1] = proj_views[1];
+        }
+        sXR.lastQuadValid = have_quad;
+        if (have_quad)
+        {
+            sXR.lastQuad = quad;
         }
         logStats();
     }
@@ -958,7 +1092,8 @@ namespace
         }
         sXR.frameOpen = false;
         const bool layer = sXR.lastLayerValid && sXR.frameState.shouldRender;
-        if (!endFrame(layer ? sXR.lastViews : nullptr, sXR.frameState.predictedDisplayTime))
+        const bool quad = sXR.lastQuadValid && sXR.frameState.shouldRender;
+        if (!endFrame(layer ? sXR.lastViews : nullptr, sXR.frameState.predictedDisplayTime, quad ? &sXR.lastQuad : nullptr))
         {
             return false;
         }
@@ -970,6 +1105,32 @@ namespace
 
 namespace
 {
+    void updateUIState(bool want)
+    {
+        const bool active = want && sXR.running && LLStartUp::getStartupState() >= STATE_STARTED;
+        if (active != sXR.uiActive)
+        {
+            sXR.uiActive = active;
+            PATXRUI::setActive(active);
+            static LLCachedControl<bool> confine(gSavedSettings, "PATVRConfineMouse", true);
+            PATXRPlatform::confineMouse(active && confine);
+            sXR.uiScale = PATXRUI::uiScale();
+            if (gViewerWindow)
+            {
+                gViewerWindow->requestResolutionUpdate(); // UI scale of the panel
+            }
+            LL_INFOS("PATXR") << "UI scale " << sXR.uiScale << (PATXRUI::useQuadLayer() ? ", panel as quad layer" : ", panel drawn into the eye images") << LL_ENDL;
+        }
+        else if (active && PATXRUI::uiScale() != sXR.uiScale)
+        {
+            sXR.uiScale = PATXRUI::uiScale();
+            if (gViewerWindow)
+            {
+                gViewerWindow->requestResolutionUpdate();
+            }
+        }
+    }
+
     // Ctrl+Shift+V and "hold Escape" read the raw key state, so they work with
     // the keyboard focus anywhere (chat bar, text fields, mouselook). The menu
     // accelerator for Ctrl+Shift+V only fires when no widget takes the key
@@ -1102,6 +1263,18 @@ void PATXRSession::frame()
         }
     }
 
+    // Phase 8: the UI goes onto the panel while the session runs in the world;
+    // between frames the camera follows the panel (tools' screen-space logic).
+    updateUIState(want);
+    {
+        XrVector3f origin, at, up;
+        F32 vfov = 0.f, aspect = 1.f;
+        if (sXR.uiActive && sXR.eyesRendered && PATXRUI::pointerCamera(origin, at, up, vfov, aspect))
+        {
+            PATXRStereo::setPointerCamera(origin, at, up, vfov, aspect);
+        }
+    }
+
     // 2. Session state changes (only between frames).
     if (!pollEvents())
     {
@@ -1174,6 +1347,72 @@ bool PATXRSession::drawHudText(const LLWString& text, const LLVector3& pos_agent
     return PATXRStereo::drawHudText(text, pos_agent, right_axis, up_axis, font, style, shadow, color);
 }
 
+void PATXRSession::beforeDisplay()
+{
+    PATXRStereo::restoreCamera();
+}
+
+void PATXRSession::beginUI()
+{
+    PATXRUI::beginCapture();
+}
+
+void PATXRSession::endUI()
+{
+    PATXRUI::endCapture();
+}
+
+bool PATXRSession::uiOnPanel()
+{
+    return PATXRUI::capturing();
+}
+
+bool PATXRSession::mouseDirection(S32 x, S32 y, LLVector3& dir)
+{
+    if (!sXR.uiActive || !gViewerWindow)
+    {
+        return false;
+    }
+    const F32 u = (F32)x / (F32)llmax(1, gViewerWindow->getWindowWidthScaled());
+    const F32 v = (F32)y / (F32)llmax(1, gViewerWindow->getWindowHeightScaled());
+    XrVector3f origin, d;
+    return PATXRUI::rayRoom(u, v, origin, d) && PATXRStereo::roomDirToAgent(d, dir);
+}
+
+void PATXRSession::mouseRayStart(LLVector3& origin, LLVector3& near_normal, const LLVector3& dir)
+{
+    if (!sXR.uiActive)
+    {
+        return;
+    }
+    XrVector3f o, d;
+    LLVector3 eye;
+    if (PATXRUI::rayRoom(0.5f, 0.5f, o, d) && PATXRStereo::roomPointToAgent(o, eye))
+    {
+        origin = eye;
+        near_normal = dir;
+    }
+}
+
+void PATXRSession::mouseRayOriginGlobal(LLVector3d& origin)
+{
+    if (!sXR.uiActive)
+    {
+        return;
+    }
+    XrVector3f o, d;
+    LLVector3 eye;
+    if (PATXRUI::rayRoom(0.5f, 0.5f, o, d) && PATXRStereo::roomPointToAgent(o, eye))
+    {
+        origin = gAgent.getPosGlobalFromAgent(eye);
+    }
+}
+
+F32 PATXRSession::uiScale()
+{
+    return PATXRUI::uiScale();
+}
+
 void PATXRSession::shutdown()
 {
     sMonitorRunning = false;
@@ -1242,6 +1481,41 @@ bool PATXRSession::drawHudText(const LLWString&, const LLVector3&, const LLVecto
                                const LLFontGL&, U8, S32, const LLColor4&)
 {
     return false;
+}
+
+void PATXRSession::beforeDisplay()
+{
+}
+
+void PATXRSession::beginUI()
+{
+}
+
+void PATXRSession::endUI()
+{
+}
+
+bool PATXRSession::uiOnPanel()
+{
+    return false;
+}
+
+bool PATXRSession::mouseDirection(S32, S32, LLVector3&)
+{
+    return false;
+}
+
+void PATXRSession::mouseRayStart(LLVector3&, LLVector3&, const LLVector3&)
+{
+}
+
+void PATXRSession::mouseRayOriginGlobal(LLVector3d&)
+{
+}
+
+F32 PATXRSession::uiScale()
+{
+    return 1.f;
 }
 
 #endif // PAT_XR

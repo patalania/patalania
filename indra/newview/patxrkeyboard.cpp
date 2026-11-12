@@ -2,9 +2,11 @@
  * @file patxrkeyboard.cpp
  * @brief <PAT:XR> Passthrough window for the real keyboard (and hands) in VR.
  *
- * Phase 6b feasibility test: a horizontal rectangle in the LOCAL space (desk
- * height, in front of the user) is drawn with alpha 0; WiVRn shows the headset
- * camera image there. Position and size can be changed with shortcuts.
+ * A horizontal rectangle in the LOCAL space (on the desk, where the real
+ * keyboard is) is drawn with alpha 0; WiVRn shows the headset camera image
+ * there. Phase 6b: feasibility; phase 8: placement from the resting hands
+ * (position, height, direction, width), soft following, manual adjustment by
+ * shortcuts on top, calibration saved in the settings.
  *
  * $LicenseInfo:firstyear=2026&license=viewerlgpl$
  * Patalania Viewer Source Code
@@ -34,43 +36,62 @@
 
 #include "llgl.h"
 #include "llkeyboard.h"
+#include "llviewercontrol.h"
 
 #include <cmath>
 
 namespace
 {
-    // Default window relative to the head pose at VR start (metres, head frame).
+    // Default window relative to the head pose at VR start (metres, head frame),
+    // used until the hands have been seen resting on the keyboard.
     constexpr F32 DEFAULT_BELOW = 0.50f;   // below the eyes
     constexpr F32 DEFAULT_AHEAD = 0.40f;   // in front
-    constexpr F32 DEFAULT_W = 0.50f;       // width
-    constexpr F32 DEFAULT_D = 0.20f;       // depth
+    constexpr F32 DEFAULT_W = 0.46f;       // width (full-size keyboard)
+    constexpr F32 DEFAULT_D = 0.18f;       // depth
     constexpr F32 FRAME = 0.006f;          // white border, 6 mm
     constexpr F32 HAND_SIZE = 0.20f;       // passthrough square around a palm
     constexpr F32 MOVE_SPEED = 0.10f;      // m/s while a key is held
+    constexpr F32 TURN_SPEED = 20.f * DEG_TO_RAD; // rad/s while a key is held
     constexpr F32 NEAR_Z = 0.05f;
     constexpr F32 FAR_Z = 100.f;
-    // Hand calibration
+    // Hands resting on the keyboard
     constexpr F32 HANDS_STILL_SECONDS = 1.0f;
     constexpr F32 HANDS_STILL_RADIUS = 0.02f;  // max movement while "resting"
     constexpr F32 HANDS_MAX_DY = 0.07f;        // similar height
-    constexpr F32 HANDS_MIN_DIST = 0.10f;
-    constexpr F32 HANDS_MAX_DIST = 0.70f;
+    constexpr F32 HANDS_MIN_DIST = 0.12f;      // palm centres, horizontal
+    constexpr F32 HANDS_MAX_DIST = 0.45f;      // farther apart: one hand is on the mouse
+    constexpr F32 HANDS_MAX_TURN = 30.f * DEG_TO_RAD; // line between the hands vs. finger direction
+    constexpr F32 HANDS_BELOW_HEAD = 0.20f;    // resting hands are at least this far below the eyes
     constexpr F32 PALM_ABOVE_KEYS = 0.03f;     // palm centre is a bit above the key tops
-    constexpr F32 HAND_MARGIN = 0.20f;         // added to the hand distance for the width
+    constexpr F32 KEYS_BEYOND_PALMS = 0.03f;   // keyboard centre a bit beyond the palms (away from the user)
+    constexpr F32 HAND_MARGIN = 0.22f;         // added to the hand distance for the width
+    constexpr F32 MIN_W = 0.30f, MAX_W = 0.60f;
+    // Following the hands later on: only near the current window, blended in softly.
+    constexpr F32 FOLLOW_MAX_DY = 0.10f;
+    constexpr F32 FOLLOW_MAX_DIST = 0.25f;
+    constexpr F32 FOLLOW_WEIGHT = 0.35f;       // share of the new hand estimate per resting period
+    constexpr F32 SHOW_SMOOTHING = 0.25f;      // s, time constant of the shown window
+    constexpr F64 SAVE_INTERVAL = 1.0;         // s between writes of the calibration settings
 
     struct Vec3 { F32 x, y, z; };
+    struct Pose { Vec3 c{ 0.f, 0.f, 0.f }; F32 yaw = 0.f; F32 w = DEFAULT_W; F32 d = DEFAULT_D; };
 
     // Window state (LOCAL space). yaw rotates the window's x axis around +Y.
-    bool sPlaced = false;        // default placement done (head known)
-    bool sHandPlaced = false;    // placed on the resting hands
-    Vec3 sC = { 0.f, 0.f, 0.f };
-    F32 sYaw = 0.f;
-    F32 sW = DEFAULT_W, sD = DEFAULT_D;
+    // shown = smoothed (base from the hands + manual adjustment in the window frame).
+    bool sPlaced = false;        // something to show (head known)
+    bool sHaveBase = false;      // base from resting hands (or loaded from the settings)
+    Pose sBase;
+    Vec3 sAdj = { 0.f, 0.f, 0.f };  // x along the keyboard, y up, z towards the user
+    F32 sAdjYaw = 0.f, sAdjW = 0.f, sAdjD = 0.f;
+    Pose sShown;
     bool sChanged = false;
     bool sWasHeld = false;
     bool sBackspaceHeld = false;
+    bool sDirty = false;
+    F64 sLastSave = 0.0;
     Vec3 sStillRef[2];
     F32 sStillTime = 0.f;
+    F64 sLastRejectLog = 0.0;
 
     GLuint sProgram = 0;
     GLuint sVAO = 0;
@@ -173,6 +194,19 @@ namespace
     Vec3 axisX(F32 yaw) { return { cosf(yaw), 0.f, -sinf(yaw) }; }
     Vec3 axisZ(F32 yaw) { return { sinf(yaw), 0.f, cosf(yaw) }; }
 
+    // Yaw whose axisZ points along -dir (dir = horizontal direction away from the user).
+    F32 yawFacing(const Vec3& dir) { return atan2f(-dir.x, -dir.z); }
+
+    F32 angleDiff(F32 a, F32 b)
+    {
+        F32 d = fmodf(a - b + F_PI, 2.f * F_PI);
+        if (d < 0.f)
+        {
+            d += 2.f * F_PI;
+        }
+        return d - F_PI;
+    }
+
     // LOCAL-space point -> clip space of this eye (OpenXR asymmetric frustum).
     void toClip(const XrView& view, const Vec3& p, F32* out)
     {
@@ -205,30 +239,102 @@ namespace
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
 
-    void logWindow(const char* what)
+    void logPose(const char* what, const Pose& p)
     {
         LL_INFOS("PATXR") << what << llformat(" keyboard window: centre x=%.2f y=%.2f z=%.2f m, yaw %.0f deg, size %.0fx%.0f cm",
-                                               sC.x, sC.y, sC.z, sYaw * RAD_TO_DEG, sW * 100.f, sD * 100.f) << LL_ENDL;
+                                               p.c.x, p.c.y, p.c.z, p.yaw * RAD_TO_DEG, p.w * 100.f, p.d * 100.f) << LL_ENDL;
+    }
+
+    // Base + manual adjustment.
+    Pose target()
+    {
+        Pose t;
+        t.yaw = sBase.yaw + sAdjYaw;
+        const Vec3 ax = axisX(t.yaw), az = axisZ(t.yaw);
+        t.c = { sBase.c.x + ax.x * sAdj.x + az.x * sAdj.z, sBase.c.y + sAdj.y, sBase.c.z + ax.z * sAdj.x + az.z * sAdj.z };
+        t.w = llclamp(sBase.w + sAdjW, 0.10f, 1.20f);
+        t.d = llclamp(sBase.d + sAdjD, 0.05f, 0.60f);
+        return t;
+    }
+
+    void smoothShown(F32 dt)
+    {
+        const Pose t = target();
+        const F32 k = 1.f - expf(-llclamp(dt, 0.f, 0.1f) / SHOW_SMOOTHING);
+        sShown.c = { sShown.c.x + (t.c.x - sShown.c.x) * k, sShown.c.y + (t.c.y - sShown.c.y) * k,
+                     sShown.c.z + (t.c.z - sShown.c.z) * k };
+        sShown.yaw += angleDiff(t.yaw, sShown.yaw) * k;
+        sShown.w += (t.w - sShown.w) * k;
+        sShown.d += (t.d - sShown.d) * k;
+    }
+
+    void save(bool force)
+    {
+        const F64 now = LLTimer::getTotalSeconds();
+        if (!sDirty || (!force && now - sLastSave < SAVE_INTERVAL))
+        {
+            return;
+        }
+        sDirty = false;
+        sLastSave = now;
+        gSavedSettings.setBOOL("PATVRKeyboardCalibrated", sHaveBase);
+        gSavedSettings.setVector3("PATVRKeyboardCenter", LLVector3(sBase.c.x, sBase.c.y, sBase.c.z));
+        gSavedSettings.setF32("PATVRKeyboardYaw", sBase.yaw * RAD_TO_DEG);
+        gSavedSettings.setVector3("PATVRKeyboardSize", LLVector3(sBase.w, sBase.d, 0.f));
+        gSavedSettings.setVector3("PATVRKeyboardAdjustPos", LLVector3(sAdj.x, sAdj.y, sAdj.z));
+        gSavedSettings.setVector3("PATVRKeyboardAdjustYawSize", LLVector3(sAdjYaw * RAD_TO_DEG, sAdjW, sAdjD));
     }
 
     // Default: below and in front of the head, turned to the head's yaw.
-    void placeFromHead(const XrPosef& left_eye, const XrPosef& right_eye)
+    void placeFromHead(const Vec3& head, const Vec3& fwd)
     {
-        const Vec3 head = { (left_eye.position.x + right_eye.position.x) * 0.5f,
-                            (left_eye.position.y + right_eye.position.y) * 0.5f,
-                            (left_eye.position.z + right_eye.position.z) * 0.5f };
-        const Vec3 fwd = rotate(left_eye.orientation, { 0.f, 0.f, -1.f }, false);
-        // yaw so that axisZ(yaw) points from the window towards the user (= -forward, horizontal)
-        sYaw = atan2f(-fwd.x, -fwd.z);
-        const Vec3 az = axisZ(sYaw);
-        sC = { head.x - az.x * DEFAULT_AHEAD, head.y - DEFAULT_BELOW, head.z - az.z * DEFAULT_AHEAD };
-        sW = DEFAULT_W;
-        sD = DEFAULT_D;
+        sBase.yaw = yawFacing(fwd);
+        const Vec3 az = axisZ(sBase.yaw);
+        sBase.c = { head.x - az.x * DEFAULT_AHEAD, head.y - DEFAULT_BELOW, head.z - az.z * DEFAULT_AHEAD };
+        sBase.w = DEFAULT_W;
+        sBase.d = DEFAULT_D;
+        sAdj = { 0.f, 0.f, 0.f };
+        sAdjYaw = sAdjW = sAdjD = 0.f;
+        sHaveBase = false;
+        sShown = target();
         sPlaced = true;
-        sHandPlaced = false;
         sStillTime = 0.f;
-        LL_INFOS("PATXR") << llformat("Head at VR start: x=%.2f y=%.2f z=%.2f m", head.x, head.y, head.z) << LL_ENDL;
-        logWindow("Default");
+        logPose("Default", sShown);
+    }
+
+    // Saved calibration (LOCAL space), if it is plausible for the current head
+    // position (WiVRn's LOCAL origin may change between sessions).
+    bool loadSaved(const Vec3& head)
+    {
+        if (!gSavedSettings.getBOOL("PATVRKeyboardCalibrated"))
+        {
+            return false;
+        }
+        const LLVector3 c = gSavedSettings.getVector3("PATVRKeyboardCenter");
+        const LLVector3 size = gSavedSettings.getVector3("PATVRKeyboardSize");
+        const LLVector3 adj = gSavedSettings.getVector3("PATVRKeyboardAdjustPos");
+        const LLVector3 adj2 = gSavedSettings.getVector3("PATVRKeyboardAdjustYawSize");
+        const F32 horiz = sqrtf((c.mV[VX] - head.x) * (c.mV[VX] - head.x) + (c.mV[VZ] - head.z) * (c.mV[VZ] - head.z));
+        const F32 below = head.y - c.mV[VY];
+        if (horiz > 1.0f || below < 0.15f || below > 1.0f)
+        {
+            LL_INFOS("PATXR") << llformat("Saved keyboard window not used: %.2f m from the head, %.2f m below the eyes "
+                                          "(the room origin changed?)", horiz, below) << LL_ENDL;
+            return false;
+        }
+        sBase.c = { c.mV[VX], c.mV[VY], c.mV[VZ] };
+        sBase.yaw = gSavedSettings.getF32("PATVRKeyboardYaw") * DEG_TO_RAD;
+        sBase.w = llclamp(size.mV[VX], MIN_W, MAX_W);
+        sBase.d = llclamp(size.mV[VY], 0.05f, 0.60f);
+        sAdj = { adj.mV[VX], adj.mV[VY], adj.mV[VZ] };
+        sAdjYaw = adj2.mV[VX] * DEG_TO_RAD;
+        sAdjW = adj2.mV[VY];
+        sAdjD = adj2.mV[VZ];
+        sHaveBase = true;
+        sShown = target();
+        sPlaced = true;
+        logPose("Saved", sShown);
+        return true;
     }
 
     F32 dist(const Vec3& a, const Vec3& b)
@@ -236,8 +342,72 @@ namespace
         return sqrtf((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y) + (a.z - b.z) * (a.z - b.z));
     }
 
-    // Both hands resting ~1 s at a similar height -> window onto the hands.
-    void placeFromHands(F32 dt, const PATXRPalm palms[2])
+    void logRejected(const char* why)
+    {
+        const F64 now = LLTimer::getTotalSeconds();
+        if (now - sLastRejectLog > 10.0)
+        {
+            sLastRejectLog = now;
+            LL_INFOS("PATXR") << "Resting hands ignored for the keyboard window: " << why << LL_ENDL;
+        }
+    }
+
+    // Keyboard estimate from both hands resting on it: direction from the line
+    // between the hands, checked against (and averaged with) the direction of the
+    // fingers. A hand on the mouse gives a line that does not fit and is ignored.
+    bool estimateFromHands(const PATXRPalm palms[2], const Vec3& head, Pose& est)
+    {
+        const Vec3 l = { palms[0].pos.x, palms[0].pos.y, palms[0].pos.z };
+        const Vec3 r = { palms[1].pos.x, palms[1].pos.y, palms[1].pos.z };
+        const F32 horiz = sqrtf((r.x - l.x) * (r.x - l.x) + (r.z - l.z) * (r.z - l.z));
+        if ((l.y + r.y) * 0.5f > head.y - HANDS_BELOW_HEAD)
+        {
+            logRejected("hands not below the head");
+            return false;
+        }
+        if (horiz < HANDS_MIN_DIST || horiz > HANDS_MAX_DIST)
+        {
+            logRejected(horiz > HANDS_MAX_DIST ? "hands too far apart (one hand on the mouse?)" : "hands too close together");
+            return false;
+        }
+        F32 yaw = atan2f(-(r.z - l.z), r.x - l.x); // axisX along left -> right hand
+        if (palms[0].orientationValid && palms[1].orientationValid)
+        {
+            Vec3 f = { 0.f, 0.f, 0.f };
+            for (U32 i = 0; i < 2; ++i)
+            {
+                Vec3 fi = rotate(palms[i].orientation, { 0.f, 0.f, -1.f }, false); // towards the fingers
+                const F32 len = sqrtf(fi.x * fi.x + fi.z * fi.z);
+                if (len > 0.2f)
+                {
+                    f.x += fi.x / len;
+                    f.z += fi.z / len;
+                }
+            }
+            if (f.x * f.x + f.z * f.z > 0.25f)
+            {
+                const F32 yaw_fingers = yawFacing(f);
+                const F32 diff = angleDiff(yaw_fingers, yaw);
+                if (fabsf(diff) > HANDS_MAX_TURN)
+                {
+                    logRejected(llformat("fingers point %.0f deg away from the line between the hands", diff * RAD_TO_DEG).c_str());
+                    return false;
+                }
+                yaw += 0.5f * diff;
+            }
+        }
+        const Vec3 az = axisZ(yaw);
+        est.yaw = yaw;
+        est.c = { (l.x + r.x) * 0.5f - az.x * KEYS_BEYOND_PALMS, (l.y + r.y) * 0.5f - PALM_ABOVE_KEYS,
+                  (l.z + r.z) * 0.5f - az.z * KEYS_BEYOND_PALMS };
+        est.w = llclamp(horiz + HAND_MARGIN, MIN_W, MAX_W);
+        est.d = DEFAULT_D;
+        return true;
+    }
+
+    // Both hands resting ~1 s at a similar height: first time the window jumps
+    // onto them, afterwards it follows softly (only when they rest near it).
+    void followHands(F32 dt, const PATXRPalm palms[2], const Vec3& head)
     {
         if (!palms[0].valid || !palms[1].valid)
         {
@@ -246,8 +416,7 @@ namespace
         }
         const Vec3 l = { palms[0].pos.x, palms[0].pos.y, palms[0].pos.z };
         const Vec3 r = { palms[1].pos.x, palms[1].pos.y, palms[1].pos.z };
-        const F32 d = dist(l, r);
-        if (fabsf(l.y - r.y) > HANDS_MAX_DY || d < HANDS_MIN_DIST || d > HANDS_MAX_DIST)
+        if (fabsf(l.y - r.y) > HANDS_MAX_DY)
         {
             sStillTime = 0.f;
             return;
@@ -264,79 +433,140 @@ namespace
         {
             return;
         }
-        // Keyboard direction = left -> right hand, horizontal.
-        sYaw = atan2f(-(r.z - l.z), r.x - l.x);
-        sC = { (l.x + r.x) * 0.5f, (l.y + r.y) * 0.5f - PALM_ABOVE_KEYS, (l.z + r.z) * 0.5f };
-        const F32 horiz = sqrtf((r.x - l.x) * (r.x - l.x) + (r.z - l.z) * (r.z - l.z));
-        sW = llclamp(horiz + HAND_MARGIN, 0.35f, 0.90f);
-        sD = DEFAULT_D;
-        sHandPlaced = true;
-        logWindow("Placed on the hands:");
+        sStillTime = 0.f; // next resting period starts now
+        Pose est;
+        if (!estimateFromHands(palms, head, est))
+        {
+            return;
+        }
+        if (!sHaveBase)
+        {
+            sBase = est;
+            sAdj = { 0.f, 0.f, 0.f };
+            sAdjYaw = sAdjW = sAdjD = 0.f;
+            sHaveBase = true;
+            sDirty = true;
+            logPose("Placed on the hands:", target());
+            return;
+        }
+        const F32 dy = fabsf(est.c.y - sBase.c.y);
+        const F32 dh = sqrtf((est.c.x - sBase.c.x) * (est.c.x - sBase.c.x) + (est.c.z - sBase.c.z) * (est.c.z - sBase.c.z));
+        const F32 dyaw = angleDiff(est.yaw, sBase.yaw);
+        if (dy > FOLLOW_MAX_DY || dh > FOLLOW_MAX_DIST || fabsf(dyaw) > HANDS_MAX_TURN)
+        {
+            logRejected("hands resting away from the keyboard window (Ctrl+Shift+Backspace measures again)");
+            return;
+        }
+        sBase.c = { sBase.c.x + (est.c.x - sBase.c.x) * FOLLOW_WEIGHT, sBase.c.y + (est.c.y - sBase.c.y) * FOLLOW_WEIGHT,
+                    sBase.c.z + (est.c.z - sBase.c.z) * FOLLOW_WEIGHT };
+        sBase.yaw += dyaw * FOLLOW_WEIGHT;
+        sBase.w += (est.w - sBase.w) * FOLLOW_WEIGHT;
+        sDirty = true;
+        if (dh > 0.02f || dy > 0.02f || fabsf(dyaw) > 3.f * DEG_TO_RAD)
+        {
+            LL_INFOS("PATXR") << llformat("Keyboard window follows the hands: %.0f cm sideways, %.0f cm height, %.0f deg "
+                                          "(%.0f%% of it)", dh * 100.f, dy * 100.f, dyaw * RAD_TO_DEG, FOLLOW_WEIGHT * 100.f) << LL_ENDL;
+        }
     }
 }
 
 void PATXRKeyboard::update(F32 dt, const XrPosef& left_eye, const XrPosef& right_eye, const PATXRPalm palms[2])
 {
+    const Vec3 head = { (left_eye.position.x + right_eye.position.x) * 0.5f,
+                        (left_eye.position.y + right_eye.position.y) * 0.5f,
+                        (left_eye.position.z + right_eye.position.z) * 0.5f };
+    const Vec3 fwd = rotate(left_eye.orientation, { 0.f, 0.f, -1.f }, false);
     if (!sPlaced)
     {
-        placeFromHead(left_eye, right_eye);
-    }
-    if (!sHandPlaced)
-    {
-        placeFromHands(dt, palms);
-    }
-
-    if (!gKeyboard)
-    {
-        return;
-    }
-    const MASK mask = gKeyboard->currentMask(false);
-    if ((mask & (MASK_CONTROL | MASK_SHIFT)) != (MASK_CONTROL | MASK_SHIFT))
-    {
-        if (sWasHeld && sChanged)
+        LL_INFOS("PATXR") << llformat("Head at VR start: x=%.2f y=%.2f z=%.2f m", head.x, head.y, head.z) << LL_ENDL;
+        if (!loadSaved(head))
         {
-            logWindow("Moved");
-            sChanged = false;
+            placeFromHead(head, fwd);
         }
-        sWasHeld = false;
-        sBackspaceHeld = false;
-        return;
     }
-    sWasHeld = true;
-    auto held = [](KEY k) { return gKeyboard->getKeyDown(k); };
+    followHands(dt, palms, head);
 
-    // Measure again: default below the head, then wait for resting hands.
-    if (held(KEY_BACKSPACE))
+    bool manual = false;
+    if (gKeyboard)
     {
-        if (!sBackspaceHeld)
+        const MASK mask = gKeyboard->currentMask(false);
+        const bool ctrl_shift = (mask & (MASK_CONTROL | MASK_SHIFT)) == (MASK_CONTROL | MASK_SHIFT);
+        const bool alt = (mask & MASK_ALT) != 0;
+        if (!ctrl_shift)
         {
-            LL_INFOS("PATXR") << "Keyboard window: measuring again" << LL_ENDL;
-            placeFromHead(left_eye, right_eye);
+            if (sWasHeld && sChanged)
+            {
+                logPose("Adjusted", target());
+                sChanged = false;
+                save(true);
+            }
+            sWasHeld = false;
+            sBackspaceHeld = false;
         }
-        sBackspaceHeld = true;
-        return;
-    }
-    sBackspaceHeld = false;
+        else
+        {
+            sWasHeld = true;
+            auto held = [](KEY k) { return gKeyboard->getKeyDown(k); };
 
-    // Fine adjustment in the window's own frame.
-    const F32 step = MOVE_SPEED * llclamp(dt, 0.f, 0.1f);
-    const Vec3 ax = axisX(sYaw), az = axisZ(sYaw);
-    F32 mx = 0.f, mz = 0.f;
-    if (held(KEY_LEFT))      mx -= step;
-    if (held(KEY_RIGHT))     mx += step;
-    if (held(KEY_UP))        mz -= step; // away from the user
-    if (held(KEY_DOWN))      mz += step;
-    if (held(KEY_PAGE_UP))   { sC.y += step; sChanged = true; }
-    if (held(KEY_PAGE_DOWN)) { sC.y -= step; sChanged = true; }
-    if (held(KEY_HOME))      { sW += step; sChanged = true; }
-    if (held(KEY_END))       { sW = llmax(0.05f, sW - step); sChanged = true; }
-    if (held(KEY_INSERT))    { sD += step; sChanged = true; }
-    if (held(KEY_DELETE))    { sD = llmax(0.03f, sD - step); sChanged = true; }
-    if (mx != 0.f || mz != 0.f)
+            // Measure again: default below the head, then wait for resting hands.
+            if (held(KEY_BACKSPACE) && !alt)
+            {
+                if (!sBackspaceHeld)
+                {
+                    LL_INFOS("PATXR") << "Keyboard window: measuring again" << LL_ENDL;
+                    placeFromHead(head, fwd);
+                    sDirty = true;
+                    save(true);
+                }
+                sBackspaceHeld = true;
+            }
+            else
+            {
+                sBackspaceHeld = false;
+                // Fine adjustment in the window's own frame, kept on top of the hand placement.
+                const F32 step = MOVE_SPEED * llclamp(dt, 0.f, 0.1f);
+                const F32 turn = TURN_SPEED * llclamp(dt, 0.f, 0.1f);
+                const F32 before = sAdj.x + sAdj.y + sAdj.z + sAdjYaw + sAdjW + sAdjD;
+                if (!alt)
+                {
+                    if (held(KEY_LEFT))      sAdj.x -= step;
+                    if (held(KEY_RIGHT))     sAdj.x += step;
+                    if (held(KEY_UP))        sAdj.z -= step; // away from the user
+                    if (held(KEY_DOWN))      sAdj.z += step;
+                    if (held(KEY_PAGE_UP))   sAdj.y += step;
+                    if (held(KEY_PAGE_DOWN)) sAdj.y -= step;
+                    if (held(KEY_HOME))      sAdjYaw += turn; // counter-clockwise seen from above
+                    if (held(KEY_END))       sAdjYaw -= turn;
+                    if (held(KEY_INSERT))    sAdjW += step;
+                    if (held(KEY_DELETE))    sAdjW -= step;
+                }
+                else
+                {
+                    // Ctrl+Shift+Alt+PgUp/PgDn: depth (Home/End with Alt = UI panel size)
+                    if (held(KEY_PAGE_UP))   sAdjD += step;
+                    if (held(KEY_PAGE_DOWN)) sAdjD -= step;
+                }
+                if (sAdj.x + sAdj.y + sAdj.z + sAdjYaw + sAdjW + sAdjD != before)
+                {
+                    manual = true;
+                    sChanged = true;
+                    sDirty = true;
+                }
+            }
+        }
+    }
+
+    if (manual)
     {
-        sC.x += ax.x * mx + az.x * mz;
-        sC.z += ax.z * mx + az.z * mz;
-        sChanged = true;
+        sShown = target(); // keys act at once
+    }
+    else
+    {
+        smoothShown(dt);
+    }
+    if (!sWasHeld)
+    {
+        save(false);
     }
 }
 
@@ -364,14 +594,14 @@ void PATXRKeyboard::draw(const XrView& view, const PATXRPalm palms[2])
     glBindBuffer(GL_ARRAY_BUFFER, sVBO);
 
     // White frame, then the transparent window inside it.
-    drawRect(view, sC, sYaw, sW + 2 * FRAME, sD + 2 * FRAME, 1.f, 1.f, 1.f, 1.f);
-    drawRect(view, sC, sYaw, sW, sD, 0.f, 0.f, 0.f, 0.f);
+    drawRect(view, sShown.c, sShown.yaw, sShown.w + 2 * FRAME, sShown.d + 2 * FRAME, 1.f, 1.f, 1.f, 1.f);
+    drawRect(view, sShown.c, sShown.yaw, sShown.w, sShown.d, 0.f, 0.f, 0.f, 0.f);
     // Hands near desk height get their own window (unchanged from the first test).
     for (U32 i = 0; i < 2; ++i)
     {
-        if (palms[i].valid && palms[i].pos.y < sC.y + 0.25f)
+        if (palms[i].valid && palms[i].pos.y < sShown.c.y + 0.25f)
         {
-            drawRect(view, { palms[i].pos.x, palms[i].pos.y, palms[i].pos.z }, sYaw, HAND_SIZE, HAND_SIZE, 0.f, 0.f, 0.f, 0.f);
+            drawRect(view, { palms[i].pos.x, palms[i].pos.y, palms[i].pos.z }, sShown.yaw, HAND_SIZE, HAND_SIZE, 0.f, 0.f, 0.f, 0.f);
         }
     }
 
@@ -400,8 +630,9 @@ void PATXRKeyboard::release()
     }
     sVBO = sVAO = sProgram = 0;
     sGLFailed = false;
+    save(true);
     sPlaced = false;
-    sHandPlaced = false;
+    sHaveBase = false;
     sStillTime = 0.f;
 }
 

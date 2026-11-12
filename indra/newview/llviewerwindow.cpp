@@ -237,6 +237,7 @@
 #include "fspanellogin.h"
 
 #include "lltracerecording.h"
+#include "patxrsession.h" // <PAT:XR/>
 
 //
 // Globals
@@ -5543,6 +5544,7 @@ LLViewerObject* LLViewerWindow::cursorIntersect(S32 mouse_x, S32 mouse_y, F32 de
 
     //get near clip plane
     LLVector3 n = LLViewerCamera::getInstance()->getAtAxis();
+    PATXRSession::mouseRayStart(mouse_point_global, n, mouse_direction_global); // <PAT:XR/> VR: ray from the eyes
     LLVector3 p = mouse_point_global + n * LLViewerCamera::getInstance()->getNear();
 
     //project mouse point onto plane
@@ -5648,6 +5650,8 @@ LLViewerObject* LLViewerWindow::cursorIntersect(S32 mouse_x, S32 mouse_y, F32 de
 // indicating direction of point on screen x,y
 LLVector3 LLViewerWindow::mouseDirectionGlobal(const S32 x, const S32 y) const
 {
+    LLVector3 pat_dir; // <PAT:XR> VR: ray from the eye centre through the pointer on the UI panel
+    if (PATXRSession::mouseDirection(x, y, pat_dir)) return pat_dir; // </PAT:XR>
     // find vertical field of view
     F32         fov = LLViewerCamera::getInstance()->getView();
 
@@ -5732,7 +5736,9 @@ bool LLViewerWindow::mousePointOnPlaneGlobal(LLVector3d& point, const S32 x, con
     LLVector3d  plane_normal_global_d;
     plane_normal_global_d.setVec(plane_normal_global);
     F64 plane_mouse_dot = (plane_normal_global_d * mouse_direction_global_d);
-    LLVector3d plane_origin_camera_rel = plane_point_global - gAgentCamera.getCameraPositionGlobal();
+    LLVector3d pat_ray_origin = gAgentCamera.getCameraPositionGlobal(); // <PAT:XR>
+    PATXRSession::mouseRayOriginGlobal(pat_ray_origin); // VR: ray from the eyes </PAT:XR>
+    LLVector3d plane_origin_camera_rel = plane_point_global - pat_ray_origin; // <PAT:XR/>
     F64 mouse_look_at_scale = (plane_normal_global_d * plane_origin_camera_rel)
                                 / plane_mouse_dot;
     if (llabs(plane_mouse_dot) < 0.00001)
@@ -5746,7 +5752,7 @@ bool LLViewerWindow::mousePointOnPlaneGlobal(LLVector3d& point, const S32 x, con
         mouse_look_at_scale = plane_origin_camera_rel.magVec() / (plane_origin_dir * mouse_direction_global_d);
     }
 
-    point = gAgentCamera.getCameraPositionGlobal() + mouse_look_at_scale * mouse_direction_global_d;
+    point = pat_ray_origin + mouse_look_at_scale * mouse_direction_global_d; // <PAT:XR/>
 
     return mouse_look_at_scale > 0.0;
 }
@@ -5766,6 +5772,7 @@ bool LLViewerWindow::mousePointOnLandGlobal(const S32 x, const S32 y, LLVector3d
     LLVector3d  camera_pos_global;
 
     camera_pos_global = gAgentCamera.getCameraPositionGlobal();
+    PATXRSession::mouseRayOriginGlobal(camera_pos_global); // <PAT:XR/> VR: ray from the eyes
     LLVector3d      probe_point_global;
     LLVector3       probe_point_region;
 
@@ -7232,7 +7239,8 @@ F32 LLViewerWindow::getWorldViewAspectRatio() const
 
 void LLViewerWindow::calcDisplayScale()
 {
-    F32 ui_scale_factor = llclamp(gSavedSettings.getF32("UIScaleFactor") * mWindow->getSystemUISize(), MIN_UI_SCALE, MAX_UI_SCALE);
+    F32 ui_scale_factor = llclamp(gSavedSettings.getF32("UIScaleFactor") * mWindow->getSystemUISize()
+                                  * PATXRSession::uiScale(), MIN_UI_SCALE, MAX_UI_SCALE); // <PAT:XR/> VR: larger UI on the panel
     LLVector2 display_scale;
     display_scale.setVec(llmax(1.f / mWindow->getPixelAspectRatio(), 1.f), llmax(mWindow->getPixelAspectRatio(), 1.f));
     display_scale *= ui_scale_factor;
