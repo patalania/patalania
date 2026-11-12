@@ -28,6 +28,7 @@
 #include "llviewerprecompiledheaders.h"
 
 #include "llhudnametag.h"
+#include "patxrsession.h" // <PAT:XR/>
 
 #include "llrender.h"
 #include "lltracerecording.h"
@@ -179,7 +180,7 @@ bool LLHUDNameTag::lineSegmentIntersect(const LLVector4a& start, const LLVector4
     LLViewerCamera::getInstance()->projectPosAgentToScreen(position, screen_pos, false);
 
     LLVector2 screen_offset;
-    screen_offset = updateScreenPos(mPositionOffset);
+    screen_offset = PATXRSession::inEyes() ? LLVector2::zero : updateScreenPos(mPositionOffset); // <PAT:XR/> VR: anchor stays in the world
 
     LLVector3 render_position = position
             + (x_pixel_vec * screen_offset.mV[VX])
@@ -286,7 +287,7 @@ void LLHUDNameTag::renderText()
     LLCoordGL screen_pos;
     LLViewerCamera::getInstance()->projectPosAgentToScreen(mPositionAgent, screen_pos, false);
 
-    LLVector2 screen_offset = updateScreenPos(mPositionOffset);
+    LLVector2 screen_offset = PATXRSession::inEyes() ? LLVector2::zero : updateScreenPos(mPositionOffset); // <PAT:XR/> VR: anchor stays in the world
 
     LLVector3 render_position = mPositionAgent
             + (x_pixel_vec * screen_offset.mV[VX])

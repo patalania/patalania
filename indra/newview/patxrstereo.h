@@ -29,6 +29,10 @@
 
 #include "patxrhands.h"
 
+class LLColor4;
+class LLFontGL;
+class LLVector3;
+
 // How the world gets into both eyes with as few changes to Firestorm as possible:
 //
 //  display() (Firestorm, unchanged flow)        PATXRStereo
@@ -68,6 +72,10 @@ namespace PATXRStereo
 
     // True while between beginEyes() and the end of renderEyes().
     bool inEyes();
+
+    // Floating text as an upright plane in the world (see PATXRSession::drawHudText).
+    bool drawHudText(const LLWString& text, const LLVector3& pos_agent, const LLVector3& right_axis,
+                     const LLVector3& up_axis, const LLFontGL& font, U8 style, S32 shadow, const LLColor4& color);
 
     // Hook 3 (top of renderFinalize). True = desktop mirror drawn, skip the rest.
     bool drawDesktopMirror();

@@ -33,6 +33,9 @@
 #include "patxrstereo.h"
 #include "patxrkeyboard.h"
 
+#include "llagent.h"
+#include "llagentcamera.h"
+#include "llfontgl.h"
 #include "llgl.h"
 #include "llglstates.h"
 #include "llhudobject.h"
@@ -41,7 +44,10 @@
 #include "llviewercamera.h"
 #include "llviewercontrol.h"
 #include "llviewerwindow.h"
-#include "llvoavatar.h"
+#include "llspatialpartition.h"
+#include "llui.h"
+#include "llviewerjointattachment.h"
+#include "llvoavatarself.h"
 #include "llwindow.h"
 #include "pipeline.h"
 
@@ -325,6 +331,12 @@ bool PATXRStereo::init(S32 width, S32 height)
     // mouselook"); only the runtime flag, the user's setting stays untouched.
     // The full first-person mode follows in phase 9.
     LLVOAvatar::sVisibleInFirstPerson = true;
+    if (isAgentAvatarValid())
+    {
+        // Attachment visibility (mesh bodies!) is only recomputed on a camera
+        // mode change; already being in mouselook must not keep them hidden.
+        gAgentAvatarp->updateAttachmentVisibility(gAgentCamera.getCameraMode());
+    }
 
     sInitialised = true;
     sHaveRef = false;
@@ -424,6 +436,36 @@ bool PATXRStereo::beginEyes(const XrView views[2])
     eyeViewport();
     LLViewerCamera::updateFrustumPlanes(cam);
 
+    // Diagnosis for the own body in mouselook (phase 7 test: body not visible).
+    static F64 last_ml_log = 0.0;
+    if (gAgentCamera.cameraMouselook() && isAgentAvatarValid() && LLTimer::getTotalSeconds() - last_ml_log > 5.0)
+    {
+        last_ml_log = LLTimer::getTotalSeconds();
+        S32 shown = 0, total = 0;
+        for (const auto& point : gAgentAvatarp->mAttachmentPoints)
+        {
+            if (!point.second)
+            {
+                continue;
+            }
+            for (auto& obj : point.second->mAttachedObjects)
+            {
+                if (obj && obj->mDrawable.notNull() && obj->mDrawable->getSpatialBridge() && !obj->isHUDAttachment())
+                {
+                    ++total;
+                    shown += obj->mDrawable->getSpatialBridge()->mDrawableType != 0 ? 1 : 0;
+                }
+            }
+        }
+        const LLVector3 head = gAgentAvatarp->mHeadp->getWorldPosition();
+        LL_INFOS("PATXR") << "Mouselook: visibleInFirstPerson=" << LLVOAvatar::sVisibleInFirstPerson
+                          << " needsRenderAvatar=" << gAgent.needsRenderAvatar()
+                          << " avatarVisible=" << gAgentAvatarp->isVisible()
+                          << " world attachments shown " << shown << "/" << total
+                          << llformat(" eye-head %.2f m, eye z-head z %.2f m", dist_vec(sEyeOrigin[0], head),
+                                      sEyeOrigin[0].mV[VZ] - head.mV[VZ]) << LL_ENDL;
+    }
+
     // The main view of display() becomes the left eye.
     applyEye(0);
     sInEyes = true;
@@ -450,6 +492,56 @@ void PATXRStereo::renderEyes(const XrView views[2], const PATXRPalm palms[2])
 bool PATXRStereo::inEyes()
 {
     return sInEyes;
+}
+
+bool PATXRStereo::drawHudText(const LLWString& text, const LLVector3& pos_agent, const LLVector3& right_axis,
+                              const LLVector3& up_axis, const LLFontGL& font, U8 style, S32 shadow, const LLColor4& color)
+{
+    if (!sInEyes)
+    {
+        return false;
+    }
+    // Firestorm draws floating text flat on the screen at the projected anchor;
+    // in VR that rolls with the head. Here the text lies in a plane in the world:
+    // one font pixel = one camera pixel vector. finishEye() gives the camera a
+    // level frame, so right_axis is horizontal and up_axis is world up.
+    const LLViewerCamera& cam = LLViewerCamera::instance();
+    LLVector3 to_cam = cam.getOrigin() - pos_agent;
+    to_cam.normVec();
+    const LLVector3 pos = pos_agent + to_cam * 0.01f; // 1 cm in front of the tag background
+    const LLVector3 rx = right_axis / llmax(0.01f, LLFontGL::sScaleX);
+    const LLVector3 uy = up_axis / llmax(0.01f, LLFontGL::sScaleY);
+    LLVector3 n = rx % uy;
+    n.normVec();
+
+    glm::mat4 plane(1.f);
+    plane[0] = glm::vec4(rx.mV[VX], rx.mV[VY], rx.mV[VZ], 0.f);
+    plane[1] = glm::vec4(uy.mV[VX], uy.mV[VY], uy.mV[VZ], 0.f);
+    plane[2] = glm::vec4(n.mV[VX], n.mV[VY], n.mV[VZ], 0.f);
+    plane[3] = glm::vec4(pos.mV[VX], pos.mV[VY], pos.mV[VZ], 1.f);
+
+    static F64 last_log = 0.0;
+    const F64 now = LLTimer::getTotalSeconds();
+    if (now - last_log > 5.0)
+    {
+        last_log = now;
+        LL_INFOS("PATXR") << llformat("Floating text in VR: up (%.2f %.2f %.2f) right (%.2f %.2f %.2f), eye up (%.2f %.2f %.2f)",
+                                      up_axis.mV[VX] / up_axis.magVec(), up_axis.mV[VY] / up_axis.magVec(), up_axis.mV[VZ] / up_axis.magVec(),
+                                      right_axis.mV[VX] / right_axis.magVec(), right_axis.mV[VY] / right_axis.magVec(), right_axis.mV[VZ] / right_axis.magVec(),
+                                      sEyeUp[0].mV[VX], sEyeUp[0].mV[VY], sEyeUp[0].mV[VZ]) << LL_ENDL;
+    }
+
+    gGL.matrixMode(LLRender::MM_MODELVIEW);
+    gGL.pushMatrix();
+    gGL.loadMatrix(glm::value_ptr(get_current_modelview() * plane));
+    LLUI::pushMatrix();
+    LLUI::loadIdentity();
+    F32 right_x;
+    font.render(text, 0, 0.f, 1.f, color, LLFontGL::LEFT, LLFontGL::BASELINE, style, (LLFontGL::ShadowType)shadow,
+                static_cast<S32>(text.length()), 1000, &right_x, false, true);
+    LLUI::popMatrix();
+    gGL.popMatrix();
+    return true;
 }
 
 bool PATXRStereo::drawDesktopMirror()
@@ -578,6 +670,10 @@ void PATXRStereo::release(bool viewer_shutdown)
         if (sInitialised)
         {
             LLVOAvatar::sVisibleInFirstPerson = gSavedSettings.getBOOL("FirstPersonAvatarVisible");
+            if (isAgentAvatarValid())
+            {
+                gAgentAvatarp->updateAttachmentVisibility(gAgentCamera.getCameraMode());
+            }
         }
     }
     if (sInitialised)

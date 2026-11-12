@@ -32,6 +32,10 @@
 // Platform split: everything here is platform neutral; only the graphics binding
 // (OpenGL context -> OpenXR) lives in patxrsession_<platform>.cpp.
 // Builds without PAT_XR (other platforms, PATALANIA_XR=OFF) get empty stubs.
+class LLColor4;
+class LLFontGL;
+class LLVector3;
+
 class PATXRSession
 {
 public:
@@ -52,6 +56,15 @@ public:
     // top of LLPipeline::renderFinalize(): true = the desktop shows the left eye
     // (already post-processed), skip the rest of renderFinalize.
     static bool drawDesktopMirror();
+
+    // True while an eye image is drawn (screen-space tricks of the desktop UI,
+    // e.g. keeping name tags inside the window, must be skipped then).
+    static bool inEyes();
+    // hud_render_text() (llhudrender.cpp): while an eye is drawn, the text is
+    // drawn as an upright plane in the world instead of flat on the screen
+    // (which would roll with the head). Returns false outside VR.
+    static bool drawHudText(const LLWString& text, const LLVector3& pos_agent, const LLVector3& right_axis,
+                            const LLVector3& up_axis, const LLFontGL& font, U8 style, S32 shadow, const LLColor4& color);
 };
 
 #endif // PAT_XRSESSION_H

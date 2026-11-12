@@ -1158,6 +1158,17 @@ bool PATXRSession::drawDesktopMirror()
     return PATXRStereo::drawDesktopMirror();
 }
 
+bool PATXRSession::inEyes()
+{
+    return PATXRStereo::inEyes();
+}
+
+bool PATXRSession::drawHudText(const LLWString& text, const LLVector3& pos_agent, const LLVector3& right_axis,
+                               const LLVector3& up_axis, const LLFontGL& font, U8 style, S32 shadow, const LLColor4& color)
+{
+    return PATXRStereo::drawHudText(text, pos_agent, right_axis, up_axis, font, style, shadow, color);
+}
+
 void PATXRSession::shutdown()
 {
     sMonitorRunning = false;
@@ -1208,6 +1219,17 @@ void PATXRSession::renderEyes()
 }
 
 bool PATXRSession::drawDesktopMirror()
+{
+    return false;
+}
+
+bool PATXRSession::inEyes()
+{
+    return false;
+}
+
+bool PATXRSession::drawHudText(const LLWString&, const LLVector3&, const LLVector3&, const LLVector3&,
+                               const LLFontGL&, U8, S32, const LLColor4&)
 {
     return false;
 }

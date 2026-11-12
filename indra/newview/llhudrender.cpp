@@ -27,6 +27,7 @@
 #include "llviewerprecompiledheaders.h"
 
 #include "llhudrender.h"
+#include "patxrsession.h" // <PAT:XR/>
 
 #include "llrender.h"
 #include "llgl.h"
@@ -100,6 +101,10 @@ void hud_render_text(const LLWString &wstr, const LLVector3 &pos_agent,
     rot.getAngleAxis(&angle, axis);
 
     LLVector3 render_pos = pos_agent + (floorf(x_offset) * right_axis) + (floorf(y_offset) * up_axis);
+    if (!orthographic && PATXRSession::drawHudText(wstr, render_pos, right_axis, up_axis, font, style, (S32)shadow, color)) // <PAT:XR>
+    {
+        return; // VR: drawn as an upright plane in the world
+    } // </PAT>
 
     //get the render_pos in screen space
 

@@ -27,6 +27,7 @@
 #include "llviewerprecompiledheaders.h"
 
 #include "llhudtext.h"
+#include "patxrsession.h" // <PAT:XR/>
 
 #include "llrender.h"
 
@@ -250,7 +251,7 @@ void LLHUDText::renderText()
     mRadius = (width_vec + height_vec).magVec() * 0.5f;
 
     LLVector2 screen_offset;
-    screen_offset = mPositionOffset;
+    screen_offset = PATXRSession::inEyes() ? LLVector2::zero : mPositionOffset; // <PAT:XR/> VR: anchor stays in the world
 
     LLVector3 render_position = mPositionAgent
             + (x_pixel_vec * screen_offset.mV[VX])
