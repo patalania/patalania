@@ -1347,7 +1347,7 @@ bool PATXRSession::drawHudText(const LLWString& text, const LLVector3& pos_agent
     return PATXRStereo::drawHudText(text, pos_agent, right_axis, up_axis, font, style, shadow, color);
 }
 
-void PATXRSession::beforeDisplay()
+void PATXRSession::restoreCamera()
 {
     PATXRStereo::restoreCamera();
 }
@@ -1364,7 +1364,12 @@ void PATXRSession::endUI()
 
 bool PATXRSession::uiOnPanel()
 {
-    return PATXRUI::capturing();
+    if (!PATXRUI::capturing())
+    {
+        return false;
+    }
+    gGL.setColorMask(true, true); // the 2D UI must write alpha into the panel target
+    return true;
 }
 
 bool PATXRSession::mouseDirection(S32 x, S32 y, LLVector3& dir)
@@ -1483,7 +1488,7 @@ bool PATXRSession::drawHudText(const LLWString&, const LLVector3&, const LLVecto
     return false;
 }
 
-void PATXRSession::beforeDisplay()
+void PATXRSession::restoreCamera()
 {
 }
 

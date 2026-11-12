@@ -91,8 +91,8 @@ namespace PATXRStereo
     // Between two frames (input handling, idle) LLViewerCamera is the pointer
     // camera of the UI panel, so that screen-space logic of the tools
     // (manipulator highlights, rectangle selection, hover) matches what the
-    // pointer covers in the headset. restoreCamera() at the start of display()
-    // gives Firestorm its own camera back before it computes the next one.
+    // pointer covers in the headset. restoreCamera() in idle(), right before
+    // gAgentCamera.updateCamera(), gives Firestorm its own camera back.
     void setPointerCamera(const XrVector3f& origin, const XrVector3f& at, const XrVector3f& up, F32 vfov, F32 aspect);
     void restoreCamera();
 

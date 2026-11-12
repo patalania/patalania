@@ -43,9 +43,12 @@
 //                                               layer (own swapchain) or drawn into both
 //                                               eye images (setting PATVRUIQuadLayer)
 //
-// The panel is the whole viewer window, anchored in the room (LOCAL space) in
-// front of the view at VR start; Ctrl+Shift+Space places it in front of the
-// current view. A mouse position (window coordinates) is a point on the panel;
+// The panel is the whole viewer window. Default (PATVRUIMode 0): fixed in the
+// real room (LOCAL space) in front of the view at VR start, like a monitor;
+// walking or turning the avatar never moves it. Optional: 1 = fixed to the
+// head, 2 = follows the view with a delay. Ctrl+Shift+Space short = hide/show
+// the whole UI (HUDs included; the pointer stays), held = panel in front of
+// the current view. Ctrl+Shift+Alt+Home/End = larger/smaller. A mouse position (window coordinates) is a point on the panel;
 // clicks that reach the world use the ray from the eye centre through that point.
 //
 // Alpha: Firestorm blends the UI with glBlendFunc(SRC_ALPHA, ONE_MINUS_SRC_ALPHA)

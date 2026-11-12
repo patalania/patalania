@@ -43,6 +43,7 @@
 #include "llviewercontrol.h"
 #include "llviewerwindow.h"
 #include "llwindow.h"
+#include "pipeline.h"
 
 #include <cmath>
 
@@ -53,6 +54,13 @@ namespace
     constexpr F32 MIN_WIDTH = 0.4f;     // panel width limits (m)
     constexpr F32 MAX_WIDTH = 5.0f;
     constexpr F32 RESIZE_SPEED = 0.5f;  // relative size change per second while a key is held
+    constexpr F32 RECENTRE_HOLD = 0.6f; // s: Ctrl+Shift+Space held this long = recentre, shorter = show/hide
+    constexpr F32 FOLLOW_START = 25.f * DEG_TO_RAD; // mode "follow": start turning after the view left this far
+    constexpr F32 FOLLOW_STOP = 3.f * DEG_TO_RAD;
+    constexpr F32 FOLLOW_TIME = 0.4f;   // s, time constant of the follow movement
+
+    // PATVRUIMode
+    enum EMode { MODE_ROOM = 0, MODE_HEAD = 1, MODE_FOLLOW = 2 };
 
     // ------------------------------------------------------------------ math
     XrVector3f v3(F32 x, F32 y, F32 z) { return { x, y, z }; }
@@ -155,8 +163,8 @@ namespace
     bool sMipsValid = false;
     GLuint sFbo = 0;
 
-    GLuint sProgram = 0, sVAO = 0, sVBO = 0;
-    GLint sTexLoc = -1, sAlphaFixLoc = -1;
+    GLuint sProgram = 0, sVAO = 0, sVBO = 0, sDepthSampler = 0;
+    GLint sTexLoc = -1, sAlphaFixLoc = -1, sDepthLoc = -1;
     bool sGLFailed = false;
 
     // Panel in the LOCAL space: centre, right/up/normal (normal towards the user), size.
@@ -167,7 +175,15 @@ namespace
     XrVector3f sEye{ 0.f, 0.f, 0.f };
     bool sEyeValid = false;
     bool sSpaceWasHeld = false;
+    F32 sSpaceHeldTime = 0.f;
+    bool sSpaceRecentred = false;
     bool sResized = false;
+    F32 sPanelYaw = 0.f;        // modes room/follow: horizontal direction of the panel from the eyes
+    bool sFollowing = false;
+    // Ctrl+Shift+Space: whole UI (floaters, menus, HUDs) hidden; the pointer stays for world clicks.
+    bool sHidden = false;
+    bool sSavedUIVisible = true;
+    bool sSavedHUDs = true;
 
     struct CursorImage
     {
@@ -237,16 +253,26 @@ namespace
         "out vec2 v_uv;\n"
         "void main() { v_uv = uv; gl_Position = clip_pos; }\n";
     // alpha_fix: the capture holds alpha^2 (see patxrui.h) -> premultiplied alpha.
+    // HUD attachments are drawn with alpha writes off (Firestorm's HUD pass):
+    // where the depth buffer was written (HUD geometry) the panel is opaque, and
+    // colour without alpha counts as coverage (colour over black = premultiplied).
     const char* FRAGMENT_SRC =
         "#version 330 core\n"
         "uniform sampler2D tex;\n"
+        "uniform sampler2D depth_tex;\n"
         "uniform int alpha_fix;\n"
         "in vec2 v_uv;\n"
         "out vec4 frag_color;\n"
         "void main()\n"
         "{\n"
         "    vec4 c = texture(tex, v_uv);\n"
-        "    if (alpha_fix != 0) { c.a = sqrt(clamp(c.a, 0.0, 1.0)); c.rgb = min(c.rgb, vec3(c.a)); }\n"
+        "    if (alpha_fix != 0)\n"
+        "    {\n"
+        "        c.a = sqrt(clamp(c.a, 0.0, 1.0));\n"
+        "        c.a = max(c.a, max(c.r, max(c.g, c.b)));\n"
+        "        if (texture(depth_tex, v_uv).r < 1.0) c.a = 1.0;\n"
+        "        c.rgb = min(c.rgb, vec3(c.a));\n"
+        "    }\n"
         "    frag_color = c;\n"
         "}\n";
 
@@ -303,6 +329,13 @@ namespace
         }
         sTexLoc = glGetUniformLocation(sProgram, "tex");
         sAlphaFixLoc = glGetUniformLocation(sProgram, "alpha_fix");
+        sDepthLoc = glGetUniformLocation(sProgram, "depth_tex");
+        glGenSamplers(1, &sDepthSampler);
+        glSamplerParameteri(sDepthSampler, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+        glSamplerParameteri(sDepthSampler, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glSamplerParameteri(sDepthSampler, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glSamplerParameteri(sDepthSampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glSamplerParameteri(sDepthSampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
         GLint old_vao = 0, old_vbo = 0;
         glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &old_vao);
@@ -326,6 +359,7 @@ namespace
     struct SavedGL
     {
         GLint program = 0, vao = 0, vbo = 0, draw_fbo = 0, read_fbo = 0, active_tex = 0, tex0 = 0, sampler0 = 0;
+        GLint tex1 = 0, sampler1 = 0;
         GLint viewport[4] = { 0, 0, 0, 0 };
         GLint blend_src_rgb = 0, blend_dst_rgb = 0, blend_src_a = 0, blend_dst_a = 0;
         GLboolean blend = GL_FALSE, depth = GL_FALSE, cull = GL_FALSE, scissor = GL_FALSE, stencil = GL_FALSE, srgb = GL_FALSE;
@@ -339,6 +373,9 @@ namespace
             glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &draw_fbo);
             glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &read_fbo);
             glGetIntegerv(GL_ACTIVE_TEXTURE, &active_tex);
+            glActiveTexture(GL_TEXTURE1);
+            glGetIntegerv(GL_TEXTURE_BINDING_2D, &tex1);
+            glGetIntegerv(GL_SAMPLER_BINDING, &sampler1);
             glActiveTexture(GL_TEXTURE0);
             glGetIntegerv(GL_TEXTURE_BINDING_2D, &tex0);
             glGetIntegerv(GL_SAMPLER_BINDING, &sampler0);
@@ -364,6 +401,7 @@ namespace
             glBindSampler(0, 0);
             glUseProgram(sProgram);
             glUniform1i(sTexLoc, 0);
+            glUniform1i(sDepthLoc, 1);
             glBindVertexArray(sVAO);
             glBindBuffer(GL_ARRAY_BUFFER, sVBO);
         }
@@ -375,6 +413,9 @@ namespace
             glUseProgram(program);
             glBindTexture(GL_TEXTURE_2D, tex0);
             glBindSampler(0, sampler0);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, tex1);
+            glBindSampler(1, sampler1);
             glActiveTexture(active_tex);
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, draw_fbo);
             glBindFramebuffer(GL_READ_FRAMEBUFFER, read_fbo);
@@ -404,6 +445,15 @@ namespace
         }
         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(verts), verts);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    }
+
+    // Depth of the capture on unit 1 (for the alpha fix), colour stays on unit 0.
+    void bindCaptureDepth()
+    {
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, sCaptureRT.getDepth());
+        glBindSampler(1, sDepthSampler);
+        glActiveTexture(GL_TEXTURE0);
     }
 
     // Order of the corners: bottom-left, bottom-right, top-left, top-right.
@@ -539,33 +589,113 @@ namespace
         sH = (w > 0 && h > 0) ? sW * (F32)h / (F32)w : sW * 0.5625f;
     }
 
-    // In front of the current view: horizontal viewing direction, a bit below
-    // eye height, turned so that it faces the eyes.
-    void place(const XrPosef& left_eye)
+    EMode mode()
     {
-        static LLCachedControl<F32> distance(gSavedSettings, "PATVRUIDistance", 1.2f);
-        static LLCachedControl<F32> drop(gSavedSettings, "PATVRUIDrop", 0.1f);
-        static LLCachedControl<F32> width(gSavedSettings, "PATVRUIWidth", 1.8f);
-        const F32 d = llclamp((F32)distance, 0.3f, 5.f);
-        sW = llclamp((F32)width, MIN_WIDTH, MAX_WIDTH);
-        updateHeight();
+        static LLCachedControl<S32> ui_mode(gSavedSettings, "PATVRUIMode", MODE_ROOM);
+        return (EMode)llclamp((S32)ui_mode, (S32)MODE_ROOM, (S32)MODE_FOLLOW);
+    }
 
-        XrVector3f fwd = rotate(left_eye.orientation, v3(0.f, 0.f, -1.f));
+    F32 distance()
+    {
+        static LLCachedControl<F32> dist(gSavedSettings, "PATVRUIDistance", 1.2f);
+        return llclamp((F32)dist, 0.3f, 5.f);
+    }
+
+    F32 dropBelowEyes()
+    {
+        static LLCachedControl<F32> drop(gSavedSettings, "PATVRUIDrop", 0.1f);
+        return llclamp((F32)drop, -1.f, 1.f);
+    }
+
+    F32 headYaw(const XrPosef& eye)
+    {
+        XrVector3f fwd = rotate(eye.orientation, v3(0.f, 0.f, -1.f));
         fwd.y = 0.f;
         if (norm(fwd) < 0.1f)
         {
-            fwd = v3(0.f, 0.f, -1.f);
+            return sPanelYaw;
         }
-        sC = add(add(sEye, mul(fwd, d)), v3(0.f, -llclamp((F32)drop, -1.f, 1.f), 0.f));
-        sN = sub(sEye, sC);
+        return atan2f(-fwd.x, -fwd.z);
+    }
+
+    F32 angleDiff(F32 a, F32 b)
+    {
+        F32 d = fmodf(a - b + F_PI, 2.f * F_PI);
+        if (d < 0.f)
+        {
+            d += 2.f * F_PI;
+        }
+        return d - F_PI;
+    }
+
+    // Panel in direction 'yaw' from 'eye': a bit below eye height, turned so
+    // that it faces the eyes. Room mode: placed once (fixed in the real room,
+    // never moved by the avatar or the SL camera); follow mode: every frame.
+    void placeAt(const XrVector3f& eye, F32 yaw)
+    {
+        static LLCachedControl<F32> width(gSavedSettings, "PATVRUIWidth", 1.8f);
+        if (!sResized)
+        {
+            sW = llclamp((F32)width, MIN_WIDTH, MAX_WIDTH);
+        }
+        updateHeight();
+        sPanelYaw = yaw;
+        const XrVector3f fwd = v3(-sinf(yaw), 0.f, -cosf(yaw));
+        sC = add(add(eye, mul(fwd, distance())), v3(0.f, -dropBelowEyes(), 0.f));
+        sN = sub(eye, sC);
         norm(sN);
         sR = cross(v3(0.f, 1.f, 0.f), sN); // horizontal right
         norm(sR);
         sU = cross(sN, sR);
         norm(sU);
         sPlaced = true;
+    }
+
+    // Head-locked mode: fixed in front of the head, turns and tilts with it.
+    void placeOnHead(const XrPosef& left_eye)
+    {
+        static LLCachedControl<F32> width(gSavedSettings, "PATVRUIWidth", 1.8f);
+        if (!sResized)
+        {
+            sW = llclamp((F32)width, MIN_WIDTH, MAX_WIDTH);
+        }
+        updateHeight();
+        const XrQuaternionf& q = left_eye.orientation;
+        sR = rotate(q, v3(1.f, 0.f, 0.f));
+        sU = rotate(q, v3(0.f, 1.f, 0.f));
+        sN = rotate(q, v3(0.f, 0.f, 1.f));
+        sC = add(add(sEye, mul(sN, -distance())), mul(sU, -dropBelowEyes()));
+        sPlaced = true;
+    }
+
+    void place(const XrPosef& left_eye)
+    {
+        placeAt(sEye, headYaw(left_eye));
         sRecentre = false;
+        sFollowing = false;
         logPanel("Placed");
+    }
+
+    void setHidden(bool hidden)
+    {
+        if (hidden == sHidden || !gViewerWindow)
+        {
+            return;
+        }
+        sHidden = hidden;
+        if (hidden)
+        {
+            sSavedUIVisible = gViewerWindow->getUIVisibility();
+            sSavedHUDs = LLPipeline::sShowHUDAttachments;
+            gViewerWindow->setUIVisibility(false);
+            LLPipeline::sShowHUDAttachments = false;
+        }
+        else
+        {
+            gViewerWindow->setUIVisibility(sSavedUIVisible);
+            LLPipeline::sShowHUDAttachments = sSavedHUDs;
+        }
+        LL_INFOS("PATXR") << "UI " << (hidden ? "hidden" : "shown again") << " (Ctrl+Shift+Space)" << LL_ENDL;
     }
 
     void handleKeys(F32 dt)
@@ -578,12 +708,26 @@ namespace
         const bool ctrl_shift = (mask & (MASK_CONTROL | MASK_SHIFT)) == (MASK_CONTROL | MASK_SHIFT);
         const bool alt = (mask & MASK_ALT) != 0;
 
-        // Ctrl+Shift+Space: panel in front of the current view.
+        // Ctrl+Shift+Space: short = hide/show the UI, held = panel in front of the view.
         const bool space = ctrl_shift && !alt && gKeyboard->getKeyDown(' ');
-        if (space && !sSpaceWasHeld)
+        if (space)
         {
-            LL_INFOS("PATXR") << "Ctrl+Shift+Space: UI panel in front of the view" << LL_ENDL;
-            sRecentre = true;
+            sSpaceHeldTime = sSpaceWasHeld ? sSpaceHeldTime + dt : 0.f;
+            if (!sSpaceRecentred && sSpaceHeldTime >= RECENTRE_HOLD)
+            {
+                LL_INFOS("PATXR") << "Ctrl+Shift+Space held: UI panel in front of the view" << LL_ENDL;
+                sRecentre = true;
+                sSpaceRecentred = true;
+                setHidden(false);
+            }
+        }
+        else if (sSpaceWasHeld)
+        {
+            if (!sSpaceRecentred)
+            {
+                setHidden(!sHidden);
+            }
+            sSpaceRecentred = false;
         }
         sSpaceWasHeld = space;
 
@@ -623,6 +767,7 @@ void PATXRUI::init()
 
 void PATXRUI::release()
 {
+    setHidden(false);
     if (sCapturing)
     {
         sCaptureRT.flush();
@@ -659,7 +804,11 @@ void PATXRUI::release()
     {
         glDeleteProgram(sProgram);
     }
-    sVBO = sVAO = sProgram = 0;
+    if (sDepthSampler)
+    {
+        glDeleteSamplers(1, &sDepthSampler);
+    }
+    sVBO = sVAO = sProgram = sDepthSampler = 0;
     sGLFailed = false;
     sTexW = sTexH = 0;
     sMipsValid = false;
@@ -681,6 +830,7 @@ void PATXRUI::setActive(bool active)
     sActive = active;
     if (!active)
     {
+        setHidden(false);
         sHasImage = false;
         sNewCapture = false;
     }
@@ -764,6 +914,7 @@ void PATXRUI::endCapture()
     glEnable(GL_BLEND);
     glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glBindTexture(GL_TEXTURE_2D, sCaptureRT.getTexture());
+    bindCaptureDepth();
     glUniform1i(sAlphaFixLoc, 1);
     F32 clip[4][4];
     pixelRect(0.f, 0.f, (F32)sCaptureRT.getWidth(), (F32)sCaptureRT.getHeight(),
@@ -775,9 +926,39 @@ void PATXRUI::update(F32 dt, const XrPosef& left_eye, const XrPosef& right_eye)
 {
     sEye = mul(add(left_eye.position, right_eye.position), 0.5f);
     sEyeValid = true;
-    if (!sPlaced || sRecentre)
+    const EMode m = mode();
+    if (m == MODE_HEAD)
+    {
+        placeOnHead(left_eye);
+        if (sRecentre)
+        {
+            sRecentre = false;
+            logPanel("Head-locked");
+        }
+    }
+    else if (!sPlaced || sRecentre)
     {
         place(left_eye);
+    }
+    else if (m == MODE_FOLLOW)
+    {
+        // Follows the view with a delay: starts when the view has left the
+        // panel far enough, then glides until it is in front again.
+        const F32 diff = angleDiff(headYaw(left_eye), sPanelYaw);
+        if (!sFollowing && fabsf(diff) > FOLLOW_START)
+        {
+            sFollowing = true;
+        }
+        F32 yaw = sPanelYaw;
+        if (sFollowing)
+        {
+            yaw += diff * (1.f - expf(-llclamp(dt, 0.f, 0.1f) / FOLLOW_TIME));
+            if (fabsf(diff) < FOLLOW_STOP)
+            {
+                sFollowing = false;
+            }
+        }
+        placeAt(sEye, yaw);
     }
     handleKeys(dt);
     updateHeight();
@@ -837,6 +1018,7 @@ void PATXRUI::prepare()
     // UI with premultiplied alpha, then the pointer on top.
     glDisable(GL_BLEND);
     glBindTexture(GL_TEXTURE_2D, sCaptureRT.getTexture());
+    bindCaptureDepth();
     glUniform1i(sAlphaFixLoc, 1);
     drawQuad(clip, FULL_UV);
     glEnable(GL_BLEND);

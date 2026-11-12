@@ -491,7 +491,6 @@ void display(bool rebuild, F32 zoom_factor, int subfield, bool for_snapshot)
     LLPerfStats::RecordSceneTime T (LLPerfStats::StatType_t::RENDER_DISPLAY); // render time capture - This is the main stat for overall rendering.
 
     LLViewerCamera& camera = LLViewerCamera::instance(); // <FS:Ansariel> Factor out calls to getInstance
-    PATXRSession::beforeDisplay(); // <PAT:XR/> VR: Firestorm's camera back (between frames it follows the UI panel)
 
     if (gWindowResized)
     { //skip render on frames where window has been resized

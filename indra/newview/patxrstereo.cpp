@@ -364,7 +364,7 @@ bool PATXRStereo::beginEyes(const XrView views[2])
         return false;
     }
     LLViewerCamera& cam = LLViewerCamera::instance();
-    // The pointer camera must have been restored at the start of display();
+    // The pointer camera must have been restored in idle();
     // never restore it later over the camera Firestorm computed for this frame.
     sPointerCamera = false;
 
@@ -403,6 +403,9 @@ bool PATXRStereo::beginEyes(const XrView views[2])
         {
             eye_base += body_fwd * llclamp((F32)fwd_offset, -0.3f, 0.5f);
         }
+        // A bit higher (user test: otherwise one partly looks into the own body).
+        static LLCachedControl<F32> up_offset(gSavedSettings, "PATVRFirstPersonUpOffset", 0.04f);
+        eye_base.mV[VZ] += llclamp((F32)up_offset, -0.2f, 0.3f);
     }
     sBase.at = cam.getAtAxis();
     sBase.left = cam.getLeftAxis();
@@ -560,8 +563,19 @@ bool PATXRStereo::pixelVectors(const LLVector3& pos_agent, LLVector3& up, LLVect
     // Same pixel size rule as LLViewerCamera::getPixelVectors, with the distance
     // to the head centre.
     const LLViewerCamera& cam = LLViewerCamera::instance();
-    const F32 height_meters = d.magVec() * tanf(cam.getView() * 0.5f);
-    const F32 meters_per_pixel = height_meters / llmax(1.f, cam.getViewHeightInPixels() * 0.5f);
+    const F32 distance = d.magVec();
+    const F32 height_meters = distance * tanf(cam.getView() * 0.5f);
+    F32 meters_per_pixel = height_meters / llmax(1.f, cam.getViewHeightInPixels() * 0.5f);
+    // Phase 8 (user test): beyond a distance the tags keep their size in the
+    // world, so they get smaller with distance like everything else, down to a
+    // minimum share of the screen size so they stay readable at medium range.
+    static LLCachedControl<F32> full_size_distance(gSavedSettings, "PATVRNameTagFullSizeDistance", 4.f);
+    static LLCachedControl<F32> min_scale(gSavedSettings, "PATVRNameTagMinScale", 0.35f);
+    const F32 full = llmax(0.5f, (F32)full_size_distance);
+    if (distance > full)
+    {
+        meters_per_pixel *= llmax(full / distance, llclamp((F32)min_scale, 0.05f, 1.f));
+    }
     up = LLVector3::z_axis * meters_per_pixel * gViewerWindow->getDisplayScale().mV[VY];
     right = right_dir * meters_per_pixel * gViewerWindow->getDisplayScale().mV[VX];
     return true;

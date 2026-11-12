@@ -27211,6 +27211,50 @@ Change of this parameter will affect the layout of buttons in notification toast
       <key>Value</key>
       <integer>0</integer>
     </map>
+    <key>PATVRUIMode</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: where the UI panel stays. 0 = fixed in the real room (default, like a monitor; avatar and SL camera never move it), 1 = fixed to the head, 2 = follows the view with a delay.</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>S32</string>
+      <key>Value</key>
+      <integer>0</integer>
+    </map>
+    <key>PATVRFirstPersonUpOffset</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; Mouselook in VR: eye position this many metres above the avatar's eyes.</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>F32</string>
+      <key>Value</key>
+      <real>0.04</real>
+    </map>
+    <key>PATVRNameTagFullSizeDistance</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: name tags and hover text keep their screen size up to this distance (m); farther away they shrink like objects in the world.</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>F32</string>
+      <key>Value</key>
+      <real>4.0</real>
+    </map>
+    <key>PATVRNameTagMinScale</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: name tags never shrink below this share of their screen size (keeps them readable at medium range).</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>F32</string>
+      <key>Value</key>
+      <real>0.35</real>
+    </map>
     <key>PATVRUIQuadLayer</key>
     <map>
       <key>Comment</key>

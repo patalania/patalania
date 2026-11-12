@@ -6302,6 +6302,7 @@ void LLAppViewer::idle()
 
     LLWorld::getInstance()->updateParticles();
 
+    PATXRSession::restoreCamera(); // <PAT:XR/> VR: Firestorm's camera back before it computes the next one
     if (gAgentPilot.isPlaying() && gAgentPilot.getOverrideCamera())
     {
         gAgentPilot.moveCamera();

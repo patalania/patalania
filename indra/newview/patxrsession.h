@@ -72,14 +72,17 @@ public:
                             const LLVector3& up_axis, const LLFontGL& font, U8 style, S32 shadow, const LLColor4& color);
 
     // Phase 8, the UI on a panel in VR (patxrui.h); all no-ops outside VR:
-    // top of display(): Firestorm's own camera back (between two frames the
-    // camera follows the UI panel, see PATXRStereo::setPointerCamera).
-    static void beforeDisplay();
+    // LLAppViewer::idle() before gAgentCamera.updateCamera(): Firestorm's own
+    // camera back (from the end of a frame until then, i.e. during input
+    // handling and hover, the camera follows the UI panel, see
+    // PATXRStereo::setPointerCamera).
+    static void restoreCamera();
     // render_ui(): HUD attachments and the 2D UI go into the panel texture.
     static void beginUI();
     static void endUI();
-    // render_ui(): true while the UI goes into the panel; 3D overlays drawn on
-    // the screen (name tags, hover text) are skipped there, the eyes have them.
+    // render_ui(), before the 2D UI: true while the UI goes into the panel; 3D
+    // overlays drawn on the screen (name tags, hover text) are skipped there,
+    // the eyes have them. Also re-enables alpha writes (the HUD pass turns them off).
     static bool uiOnPanel();
     // LLViewerWindow::mouseDirectionGlobal(): direction of the ray from the eye
     // centre through the panel point under window position x, y (scaled UI px).
