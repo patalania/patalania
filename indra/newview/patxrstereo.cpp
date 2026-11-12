@@ -469,12 +469,18 @@ bool PATXRStereo::beginEyes(const XrView views[2])
             }
         }
         const LLVector3 head = gAgentAvatarp->mHeadp->getWorldPosition();
+        const LLVector3 centre_eye = (sEyeOrigin[0] + sEyeOrigin[1]) * 0.5f;
+        const LLVector3 avatar_eyes = (gAgentAvatarp->mEyeLeftp && gAgentAvatarp->mEyeRightp)
+            ? (gAgentAvatarp->mEyeLeftp->getWorldPosition() + gAgentAvatarp->mEyeRightp->getWorldPosition()) * 0.5f : head;
         LL_INFOS("PATXR") << "Mouselook: visibleInFirstPerson=" << LLVOAvatar::sVisibleInFirstPerson
                           << " needsRenderAvatar=" << gAgent.needsRenderAvatar()
                           << " avatarVisible=" << gAgentAvatarp->isVisible()
                           << " world attachments shown " << shown << "/" << total
-                          << llformat(" eye-head %.2f m, eye z-head z %.2f m", dist_vec(sEyeOrigin[0], head),
-                                      sEyeOrigin[0].mV[VZ] - head.mV[VZ]) << LL_ENDL;
+                          << llformat(" eye-head %.2f m, eyes centre to avatar eyes %.2f m (along view %.2f m), "
+                                      "head tracking offset %.2f m, desktop camera to avatar eyes %.2f m",
+                                      dist_vec(sEyeOrigin[0], head), dist_vec(centre_eye, avatar_eyes),
+                                      (centre_eye - avatar_eyes) * sEyeAt[0], dist_vec(centre_eye, eye_base),
+                                      dist_vec(sBase.origin, avatar_eyes)) << LL_ENDL;
     }
 
     // The main view of display() becomes the left eye.
