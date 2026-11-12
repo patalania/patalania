@@ -43,6 +43,15 @@ public:
 
     // True while an OpenXR session is running (frames are submitted).
     static bool isRunning();
+
+    // Stereo hooks inside display() (llviewerdisplay.cpp), no-ops outside VR:
+    // after display_update_camera(): camera of the left eye, eye-sized buffers.
+    static void beginEyes();
+    // after renderDeferredLighting(): finish the left eye, render the right eye.
+    static void renderEyes();
+    // top of LLPipeline::renderFinalize(): true = the desktop shows the left eye
+    // (already post-processed), skip the rest of renderFinalize.
+    static bool drawDesktopMirror();
 };
 
 #endif // PAT_XRSESSION_H

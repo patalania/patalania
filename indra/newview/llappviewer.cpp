@@ -1834,7 +1834,7 @@ bool LLAppViewer::doFrame()
 
             // yield cooperatively when not running as foreground window
             // and when not quiting (causes trouble at mac's cleanup stage)
-            if (!LLApp::isExiting()
+            if (!LLApp::isExiting() && !PATXRSession::isRunning() // <PAT:XR/> the headset sets the pace
                 && ((gViewerWindow && !gViewerWindow->getWindow()->getVisible())
                     || !gFocusMgr.getAppHasFocus()))
             {
@@ -1914,7 +1914,8 @@ bool LLAppViewer::doFrame()
             // <FS:Ansariel> FIRE-22297: FPS limiter not working properly on Mac/Linux
             static LLCachedControl<U32> max_fps(gSavedSettings, "FramePerSecondLimit");
             static LLCachedControl<bool> fsLimitFramerate(gSavedSettings, "FSLimitFramerate");
-            if (fsLimitFramerate && LLStartUp::getStartupState() == STATE_STARTED && !gTeleportDisplay && !logoutRequestSent() && max_fps > F_APPROXIMATELY_ZERO)
+            if (fsLimitFramerate && LLStartUp::getStartupState() == STATE_STARTED && !gTeleportDisplay && !logoutRequestSent() && max_fps > F_APPROXIMATELY_ZERO
+                && !PATXRSession::isRunning()) // <PAT:XR/> VR: xrWaitFrame limits the frame rate
             {
                 // Sleep a while to limit frame rate.
                 LLPerfStats::RecordSceneTime T ( LLPerfStats::StatType_t::RENDER_FPSLIMIT );

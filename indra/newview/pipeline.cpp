@@ -32,6 +32,7 @@
 #include "llimagepng.h"
 #include "llaudioengine.h" // For debugging.
 #include "llerror.h"
+#include "patxrsession.h" // <PAT:XR/>
 #include "llviewercontrol.h"
 #include "llfasttimer.h"
 #include "llfontgl.h"
@@ -8922,6 +8923,7 @@ void LLPipeline::renderDoF(LLRenderTarget* src, LLRenderTarget* dst)
 void LLPipeline::renderFinalize()
 {
     llassert(!gCubeSnapshot);
+    if (PATXRSession::drawDesktopMirror()) return; // <PAT:XR/> VR: monitor shows the left eye
     LLVertexBuffer::unbind();
     LLGLState::checkStates();
 

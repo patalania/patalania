@@ -2,9 +2,10 @@
  * @file patxrsession.cpp
  * @brief <PAT:XR> OpenXR session for the Patalania VR mode (platform neutral).
  *
- * Phase 6 (skeleton): instance, system, session, LOCAL space, one swapchain per
- * eye, event loop and a test image (left eye red, right eye blue, white square
- * in the centre). Stereo rendering of the world follows in phase 7.
+ * Instance, system, session, LOCAL space, one swapchain per eye, event loop and
+ * the frame loop. Phase 7: the world is rendered per eye inside display()
+ * (patxrstereo.cpp); before login or without a world image the frame shows the
+ * headset camera (passthrough, alpha 0).
  *
  * $LicenseInfo:firstyear=2026&license=viewerlgpl$
  * Patalania Viewer Source Code
@@ -35,6 +36,7 @@
 #include "patxrsession_platform.h"
 #include "patxrhands.h"
 #include "patxrkeyboard.h"
+#include "patxrstereo.h"
 
 #include "llgl.h"
 #include "llnotificationsutil.h"
@@ -53,7 +55,10 @@
 namespace
 {
     constexpr const char* SETTING_ENABLED = "PATVREnabled";
+    constexpr const char* SETTING_RES_SCALE = "PATVRResolutionScale";
+    constexpr const char* SETTING_HALF_RATE = "PATVRHalfRate";
     constexpr F64 STOP_TIMEOUT_SECONDS = 3.0;
+    constexpr F64 STATS_INTERVAL_SECONDS = 10.0;
 
     struct EyeSwapchain
     {
@@ -81,6 +86,32 @@ namespace
         F64 lastFrameTime = 0.0;
         PATXRPalm palms[2];
         F32 lastDt = 0.f;
+
+        // Frame begun at the end of the previous main-loop iteration, rendered by
+        // display() in between, submitted at the end of this iteration.
+        bool frameOpen = false;
+        XrFrameState frameState{ XR_TYPE_FRAME_STATE };
+        bool viewsLocated = false;
+        bool viewsValid = false;
+        XrView views[2] = { { XR_TYPE_VIEW }, { XR_TYPE_VIEW } };
+        bool eyesActive = false;    // between the two display() hooks
+        bool eyesRendered = false;  // world image of this frame is ready
+        F64 eyesStart = 0.0;
+
+        // Last submitted world layer (re-submitted by the half-rate mode).
+        bool lastLayerValid = false;
+        XrCompositionLayerProjectionView lastViews[2] = { { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW },
+                                                          { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW } };
+
+        // Statistics (logged every STATS_INTERVAL_SECONDS)
+        F64 statsStart = 0.0;
+        U32 statsSubmitted = 0;
+        U32 statsRendered = 0;
+        U32 statsRepeated = 0;
+        U32 statsMissed = 0;
+        F64 statsEyeSeconds = 0.0;
+        F64 statsEyeMax = 0.0;
+        XrTime lastDisplayTime = 0;
     };
 
     XRState sXR;
@@ -96,8 +127,9 @@ namespace
     }
 
     // Release everything in reverse order. Safe to call in any state.
-    void destroyAll()
+    void destroyAll(bool viewer_shutdown = false)
     {
+        PATXRStereo::release(viewer_shutdown);
         PATXRKeyboard::release();
         PATXRHands::release();
         if (sXR.fbo)
@@ -405,7 +437,8 @@ namespace
             return error;
         }
 
-        // 8. One swapchain per eye at the recommended size.
+        // 8. One swapchain per eye: recommended size x PATVRResolutionScale.
+        const F32 res_scale = llclamp(gSavedSettings.getF32(SETTING_RES_SCALE), 0.3f, 2.f);
         int64_t format = chooseSwapchainFormat(error);
         if (!format)
         {
@@ -418,8 +451,10 @@ namespace
             swci.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_SAMPLED_BIT;
             swci.format = format;
             swci.sampleCount = 1;
-            swci.width = views[i].recommendedImageRectWidth;
-            swci.height = views[i].recommendedImageRectHeight;
+            swci.width = llclamp((uint32_t)ll_round(views[i].recommendedImageRectWidth * res_scale), 256u,
+                                 views[i].maxImageRectWidth);
+            swci.height = llclamp((uint32_t)ll_round(views[i].recommendedImageRectHeight * res_scale), 256u,
+                                  views[i].maxImageRectHeight);
             swci.faceCount = 1;
             swci.arraySize = 1;
             swci.mipCount = 1;
@@ -443,13 +478,24 @@ namespace
                 return error;
             }
         }
-        LL_INFOS("PATXR") << "Swapchains: " << sXR.eyes[0].width << "x" << sXR.eyes[0].height << " per eye, format 0x"
+        LL_INFOS("PATXR") << "Swapchains: " << sXR.eyes[0].width << "x" << sXR.eyes[0].height << " per eye (recommended "
+                          << views[0].recommendedImageRectWidth << "x" << views[0].recommendedImageRectHeight
+                          << ", scale " << res_scale << "), format 0x"
                           << std::hex << format << std::dec << ", " << sXR.eyes[0].images.size() << " images, blend mode "
                           << (S32)sXR.blendMode << LL_ENDL;
+        if (sXR.eyes[0].width != sXR.eyes[1].width || sXR.eyes[0].height != sXR.eyes[1].height)
+        {
+            return "Both eyes need the same image size";
+        }
 
         PATXRHands::init(sXR.instance, sXR.system, sXR.session, hand_ext);
 
         glGenFramebuffers(1, &sXR.fbo);
+        if (!PATXRStereo::init(sXR.eyes[0].width, sXR.eyes[0].height))
+        {
+            return "Not enough video memory for the eye images (try a lower PATVRResolutionScale)";
+        }
+        sXR.statsStart = LLTimer::getTotalSeconds();
         return std::string();
     }
 
@@ -498,6 +544,12 @@ namespace
 
             switch (event.type)
             {
+            case XR_TYPE_EVENT_DATA_REFERENCE_SPACE_CHANGE_PENDING:
+                // Recentred in the headset: the head reference must be taken again.
+                LL_INFOS("PATXR") << "Reference space changed (recentred)" << LL_ENDL;
+                PATXRStereo::resetReference();
+                break;
+
             case XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING:
                 fallBackToDesktop("PatVRStopped", "The OpenXR runtime is shutting down (WiVRn server stopped?)");
                 return false;
@@ -560,64 +612,42 @@ namespace
         return sXR.instance != XR_NULL_HANDLE;
     }
 
-    // Phase 6 test image: one colour per eye, white square in the centre.
-    void drawTestImage(const EyeSwapchain& eye, GLuint texture, U32 eye_index, const XrView& view)
+    // No world image (before login, window minimized, ...): show the headset
+    // camera everywhere (alpha 0), so the room and the monitor stay visible.
+    void drawPassthrough(const EyeSwapchain& eye, GLuint texture)
     {
         GLint old_fbo = 0;
         GLint old_viewport[4] = { 0 };
-        GLint old_scissor[4] = { 0 };
         GLfloat old_clear[4] = { 0.f };
         GLboolean old_mask[4] = { GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE };
         glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &old_fbo);
         glGetIntegerv(GL_VIEWPORT, old_viewport);
-        glGetIntegerv(GL_SCISSOR_BOX, old_scissor);
         glGetFloatv(GL_COLOR_CLEAR_VALUE, old_clear);
         glGetBooleanv(GL_COLOR_WRITEMASK, old_mask);
         const GLboolean old_scissor_test = glIsEnabled(GL_SCISSOR_TEST);
 
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sXR.fbo);
         glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
-        if (sXR.frames == 0 && glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        {
-            LL_WARNS("PATXR") << "Swapchain framebuffer incomplete" << LL_ENDL;
-        }
-
         glViewport(0, 0, eye.width, eye.height);
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
         glDisable(GL_SCISSOR_TEST);
-        if (eye_index == 0)
-        {
-            glClearColor(0.45f, 0.f, 0.f, 1.f); // left: red
-        }
-        else
-        {
-            glClearColor(0.f, 0.f, 0.45f, 1.f); // right: blue
-        }
+        glClearColor(0.f, 0.f, 0.f, 0.f);
         glClear(GL_COLOR_BUFFER_BIT);
-
-        const GLsizei size = llmax(eye.width, eye.height) / 10;
-        glEnable(GL_SCISSOR_TEST);
-        glScissor((eye.width - size) / 2, (eye.height - size) / 2, size, size);
-        glClearColor(1.f, 1.f, 1.f, 1.f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glDisable(GL_SCISSOR_TEST);
-
-        // Phase 6b: transparent keyboard window (passthrough) in the LOCAL space.
-        PATXRKeyboard::draw(view, sXR.palms);
-
         glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, old_fbo);
         glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
-        glScissor(old_scissor[0], old_scissor[1], old_scissor[2], old_scissor[3]);
-        if (!old_scissor_test)
+        if (old_scissor_test)
         {
-            glDisable(GL_SCISSOR_TEST);
+            glEnable(GL_SCISSOR_TEST);
         }
         glClearColor(old_clear[0], old_clear[1], old_clear[2], old_clear[3]);
         glColorMask(old_mask[0], old_mask[1], old_mask[2], old_mask[3]);
     }
 
-    void renderFrame()
+    // xrWaitFrame + xrBeginFrame. Called at the end of a main-loop iteration, so
+    // the headset paces the viewer; display() of the next iteration renders it.
+    bool beginFrame()
     {
         XrFrameWaitInfo fwi{ XR_TYPE_FRAME_WAIT_INFO };
         XrFrameState frame_state{ XR_TYPE_FRAME_STATE };
@@ -625,44 +655,138 @@ namespace
         if (XR_FAILED(res))
         {
             fallBackToDesktop("PatVRStopped", "xrWaitFrame failed: " + resultString(res));
-            return;
+            return false;
         }
         XrFrameBeginInfo fbi{ XR_TYPE_FRAME_BEGIN_INFO };
         res = xrBeginFrame(sXR.session, &fbi);
         if (XR_FAILED(res))
         {
             fallBackToDesktop("PatVRStopped", "xrBeginFrame failed: " + resultString(res));
+            return false;
+        }
+        if (sXR.lastDisplayTime && frame_state.predictedDisplayPeriod > 0 &&
+            frame_state.predictedDisplayTime - sXR.lastDisplayTime > frame_state.predictedDisplayPeriod * 3 / 2)
+        {
+            sXR.statsMissed += (U32)((frame_state.predictedDisplayTime - sXR.lastDisplayTime) /
+                                     frame_state.predictedDisplayPeriod) - 1;
+        }
+        sXR.lastDisplayTime = frame_state.predictedDisplayTime;
+        sXR.frameState = frame_state;
+        sXR.frameOpen = true;
+        sXR.viewsLocated = false;
+        sXR.viewsValid = false;
+        sXR.eyesActive = false;
+        sXR.eyesRendered = false;
+        return true;
+    }
+
+    // Eye poses for the predicted display time, as late as possible (right
+    // before the world is rendered). Also feeds hand tracking and the keyboard window.
+    void locateViews()
+    {
+        sXR.viewsLocated = true;
+        sXR.viewsValid = false;
+        XrViewLocateInfo vli{ XR_TYPE_VIEW_LOCATE_INFO };
+        vli.viewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
+        vli.displayTime = sXR.frameState.predictedDisplayTime;
+        vli.space = sXR.space;
+        XrViewState view_state{ XR_TYPE_VIEW_STATE };
+        sXR.views[0] = { XR_TYPE_VIEW };
+        sXR.views[1] = { XR_TYPE_VIEW };
+        uint32_t view_count = 0;
+        XrResult res = xrLocateViews(sXR.session, &vli, &view_state, 2, &view_count, sXR.views);
+        sXR.viewsValid = XR_SUCCEEDED(res) && view_count == 2 &&
+                         (view_state.viewStateFlags & XR_VIEW_STATE_ORIENTATION_VALID_BIT);
+        if (sXR.viewsValid)
+        {
+            PATXRHands::locate(sXR.space, sXR.frameState.predictedDisplayTime, sXR.palms);
+            PATXRKeyboard::update(sXR.lastDt, sXR.views[0].pose, sXR.views[1].pose, sXR.palms);
+        }
+    }
+
+    bool endFrame(const XrCompositionLayerProjectionView* proj_views, XrTime display_time)
+    {
+        XrCompositionLayerProjection layer{ XR_TYPE_COMPOSITION_LAYER_PROJECTION };
+        const XrCompositionLayerBaseHeader* layers[1] = { reinterpret_cast<XrCompositionLayerBaseHeader*>(&layer) };
+        if (proj_views)
+        {
+            layer.space = sXR.space;
+            layer.layerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT |
+                               XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT;
+            layer.viewCount = 2;
+            layer.views = proj_views;
+        }
+        XrFrameEndInfo fei{ XR_TYPE_FRAME_END_INFO };
+        fei.displayTime = display_time;
+        fei.environmentBlendMode = sXR.blendMode;
+        fei.layerCount = proj_views ? 1 : 0;
+        fei.layers = proj_views ? layers : nullptr;
+        XrResult res = xrEndFrame(sXR.session, &fei);
+        if (XR_FAILED(res))
+        {
+            fallBackToDesktop("PatVRStopped", "xrEndFrame failed: " + resultString(res));
+            return false;
+        }
+        if (sXR.frames++ == 0)
+        {
+            LL_INFOS("PATXR") << "First frame submitted" << LL_ENDL;
+        }
+        return true;
+    }
+
+    void logStats()
+    {
+        const F64 now = LLTimer::getTotalSeconds();
+        const F64 span = now - sXR.statsStart;
+        if (span < STATS_INTERVAL_SECONDS)
+        {
             return;
+        }
+        const F64 period_ms = sXR.frameState.predictedDisplayPeriod / 1.0e6;
+        LL_INFOS("PATXR") << llformat("Stats: headset %.1f Hz, submitted %.1f/s, world rendered %.1f/s, repeated %.1f/s, "
+                                      "missed %u, eye render avg %.1f ms max %.1f ms (CPU, both eyes)",
+                                      period_ms > 0.0 ? 1000.0 / period_ms : 0.0,
+                                      sXR.statsSubmitted / span, sXR.statsRendered / span, sXR.statsRepeated / span,
+                                      sXR.statsMissed,
+                                      sXR.statsRendered ? sXR.statsEyeSeconds * 1000.0 / sXR.statsRendered : 0.0,
+                                      sXR.statsEyeMax * 1000.0) << LL_ENDL;
+        sXR.statsStart = now;
+        sXR.statsSubmitted = sXR.statsRendered = sXR.statsRepeated = sXR.statsMissed = 0;
+        sXR.statsEyeSeconds = sXR.statsEyeMax = 0.0;
+    }
+
+    // Submit the frame begun at the end of the previous iteration: the world
+    // image from display() if there is one, otherwise passthrough.
+    void submitFrame()
+    {
+        if (!sXR.frameOpen)
+        {
+            return;
+        }
+        sXR.frameOpen = false;
+        if (sXR.eyesActive)
+        {
+            PATXRStereo::abort();
+            sXR.eyesActive = false;
         }
 
         XrCompositionLayerProjectionView proj_views[2] = { { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW },
                                                            { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW } };
-        XrCompositionLayerProjection layer{ XR_TYPE_COMPOSITION_LAYER_PROJECTION };
-        const XrCompositionLayerBaseHeader* layers[1] = { reinterpret_cast<XrCompositionLayerBaseHeader*>(&layer) };
-        uint32_t layer_count = 0;
-
-        if (frame_state.shouldRender)
+        bool have_layer = false;
+        if (sXR.frameState.shouldRender)
         {
-            XrViewLocateInfo vli{ XR_TYPE_VIEW_LOCATE_INFO };
-            vli.viewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
-            vli.displayTime = frame_state.predictedDisplayTime;
-            vli.space = sXR.space;
-            XrViewState view_state{ XR_TYPE_VIEW_STATE };
-            XrView views[2] = { { XR_TYPE_VIEW }, { XR_TYPE_VIEW } };
-            uint32_t view_count = 0;
-            res = xrLocateViews(sXR.session, &vli, &view_state, 2, &view_count, views);
-            const bool views_valid = XR_SUCCEEDED(res) && view_count == 2 &&
-                                     (view_state.viewStateFlags & XR_VIEW_STATE_ORIENTATION_VALID_BIT);
-            if (views_valid)
+            if (!sXR.viewsLocated)
             {
-                PATXRHands::locate(sXR.space, frame_state.predictedDisplayTime, sXR.palms);
-                PATXRKeyboard::update(sXR.lastDt, views[0].pose, views[1].pose, sXR.palms);
+                locateViews();
+            }
+            if (sXR.viewsValid)
+            {
                 for (U32 i = 0; i < 2; ++i)
                 {
                     EyeSwapchain& eye = sXR.eyes[i];
                     uint32_t index = 0;
                     XrSwapchainImageAcquireInfo ai{ XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO };
-                    res = xrAcquireSwapchainImage(eye.handle, &ai, &index);
+                    XrResult res = xrAcquireSwapchainImage(eye.handle, &ai, &index);
                     if (XR_FAILED(res))
                     {
                         fallBackToDesktop("PatVRStopped", "xrAcquireSwapchainImage failed: " + resultString(res));
@@ -677,42 +801,67 @@ namespace
                         return;
                     }
 
-                    drawTestImage(eye, eye.images[index].image, i, views[i]);
+                    if (sXR.eyesRendered)
+                    {
+                        PATXRStereo::copyToSwapchain(i, eye.images[index].image, eye.width, eye.height);
+                    }
+                    else
+                    {
+                        drawPassthrough(eye, eye.images[index].image);
+                    }
 
                     XrSwapchainImageReleaseInfo ri{ XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO };
                     xrReleaseSwapchainImage(eye.handle, &ri);
 
-                    proj_views[i].pose = views[i].pose;
-                    proj_views[i].fov = views[i].fov;
+                    // The pose the image was rendered with: the compositor reprojects
+                    // from it to the real head pose at display time.
+                    proj_views[i].pose = sXR.views[i].pose;
+                    proj_views[i].fov = sXR.views[i].fov;
                     proj_views[i].subImage.swapchain = eye.handle;
                     proj_views[i].subImage.imageRect.offset = { 0, 0 };
                     proj_views[i].subImage.imageRect.extent = { eye.width, eye.height };
                     proj_views[i].subImage.imageArrayIndex = 0;
                 }
-                layer.space = sXR.space;
-                layer.layerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT |
-                                   XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT;
-                layer.viewCount = 2;
-                layer.views = proj_views;
-                layer_count = 1;
+                have_layer = true;
             }
         }
 
-        XrFrameEndInfo fei{ XR_TYPE_FRAME_END_INFO };
-        fei.displayTime = frame_state.predictedDisplayTime;
-        fei.environmentBlendMode = sXR.blendMode;
-        fei.layerCount = layer_count;
-        fei.layers = layer_count ? layers : nullptr;
-        res = xrEndFrame(sXR.session, &fei);
-        if (XR_FAILED(res))
+        if (!endFrame(have_layer ? proj_views : nullptr, sXR.frameState.predictedDisplayTime))
         {
-            fallBackToDesktop("PatVRStopped", "xrEndFrame failed: " + resultString(res));
             return;
         }
-        if (sXR.frames++ == 0)
+        ++sXR.statsSubmitted;
+        if (sXR.eyesRendered)
         {
-            LL_INFOS("PATXR") << "First frame submitted" << LL_ENDL;
+            ++sXR.statsRendered;
         }
+        sXR.lastLayerValid = have_layer;
+        if (have_layer)
+        {
+            sXR.lastViews[0] = proj_views[0];
+            sXR.lastViews[1] = proj_views[1];
+        }
+        logStats();
+    }
+
+    // Half-rate mode: one extra headset frame that shows the last image again
+    // (old pose, the compositor reprojects it), so the viewer renders only every
+    // second headset frame with an even pace.
+    bool repeatFrame()
+    {
+        if (!beginFrame())
+        {
+            return false;
+        }
+        sXR.frameOpen = false;
+        const bool layer = sXR.lastLayerValid && sXR.frameState.shouldRender;
+        if (!endFrame(layer ? sXR.lastViews : nullptr, sXR.frameState.predictedDisplayTime))
+        {
+            return false;
+        }
+        ++sXR.statsSubmitted;
+        ++sXR.statsRepeated;
+        return true;
     }
 }
 
@@ -787,6 +936,13 @@ void PATXRSession::frame()
         return;
     }
 
+    // 1. Finish the frame rendered by display() in this iteration.
+    submitFrame();
+    if (sXR.instance == XR_NULL_HANDLE)
+    {
+        return;
+    }
+
     if (!want)
     {
         requestStop();
@@ -796,19 +952,60 @@ void PATXRSession::frame()
         }
     }
 
+    // 2. Session state changes (only between frames).
     if (!pollEvents())
     {
         return;
     }
 
+    // 3. Wait for the headset and begin the next frame.
     if (sXR.running)
     {
         const F64 now = LLTimer::getTotalSeconds();
         const F32 dt = sXR.lastFrameTime > 0.0 ? (F32)(now - sXR.lastFrameTime) : 0.f;
         sXR.lastFrameTime = now;
         sXR.lastDt = dt;
-        renderFrame();
+        static LLCachedControl<bool> half_rate(gSavedSettings, SETTING_HALF_RATE, false);
+        if (half_rate && sXR.lastLayerValid && !repeatFrame())
+        {
+            return;
+        }
+        beginFrame();
     }
+}
+
+void PATXRSession::beginEyes()
+{
+    if (!sXR.running || !sXR.frameOpen || !sXR.frameState.shouldRender || sXR.eyesRendered || sXR.eyesActive)
+    {
+        return;
+    }
+    locateViews();
+    if (!sXR.viewsValid)
+    {
+        return;
+    }
+    sXR.eyesStart = LLTimer::getTotalSeconds();
+    sXR.eyesActive = PATXRStereo::beginEyes(sXR.views);
+}
+
+void PATXRSession::renderEyes()
+{
+    if (!sXR.eyesActive)
+    {
+        return;
+    }
+    PATXRStereo::renderEyes(sXR.views, sXR.palms);
+    sXR.eyesActive = false;
+    sXR.eyesRendered = true;
+    const F64 spent = LLTimer::getTotalSeconds() - sXR.eyesStart;
+    sXR.statsEyeSeconds += spent;
+    sXR.statsEyeMax = llmax(sXR.statsEyeMax, spent);
+}
+
+bool PATXRSession::drawDesktopMirror()
+{
+    return PATXRStereo::drawDesktopMirror();
 }
 
 void PATXRSession::shutdown()
@@ -827,7 +1024,7 @@ void PATXRSession::shutdown()
         {
             xrEndSession(sXR.session); // may fail outside STOPPING; destroy follows anyway
         }
-        destroyAll();
+        destroyAll(true);
     }
 }
 
@@ -847,6 +1044,19 @@ void PATXRSession::shutdown()
 }
 
 bool PATXRSession::isRunning()
+{
+    return false;
+}
+
+void PATXRSession::beginEyes()
+{
+}
+
+void PATXRSession::renderEyes()
+{
+}
+
+bool PATXRSession::drawDesktopMirror()
 {
     return false;
 }

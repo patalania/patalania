@@ -962,8 +962,9 @@ else ()
 endif ()
 list(APPEND viewer_SOURCE_FILES patxrsession.cpp patxrsession.h patxrsession_platform.h)
 if (PATALANIA_XR AND LINUX)
-  list(APPEND viewer_SOURCE_FILES patxrsession_linux.cpp patxrhands.cpp patxrhands.h patxrkeyboard.cpp patxrkeyboard.h)
-  set_source_files_properties(patxrsession.cpp patxrsession_linux.cpp patxrhands.cpp patxrkeyboard.cpp
+  list(APPEND viewer_SOURCE_FILES patxrsession_linux.cpp patxrhands.cpp patxrhands.h patxrkeyboard.cpp patxrkeyboard.h
+                                  patxrstereo.cpp patxrstereo.h)
+  set_source_files_properties(patxrsession.cpp patxrsession_linux.cpp patxrhands.cpp patxrkeyboard.cpp patxrstereo.cpp
                               PROPERTIES COMPILE_DEFINITIONS PAT_XR=1)
 endif ()
 # </PAT>

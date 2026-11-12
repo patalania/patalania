@@ -86,6 +86,7 @@
 #include "llvograss.h"
 #include "llworld.h"
 #include "pipeline.h"
+#include "patxrsession.h" // <PAT:XR/>
 
 #include <boost/json.hpp>
 // [RLVa:KB] - Checked: 2011-05-22 (RLVa-1.3.1a)
@@ -862,6 +863,7 @@ void display(bool rebuild, F32 zoom_factor, int subfield, bool for_snapshot)
 
         stop_glerror();
         display_update_camera();
+        PATXRSession::beginEyes(); // <PAT:XR/> VR: left eye camera (no-op on the desktop)
         stop_glerror();
 
         {
@@ -1167,6 +1169,7 @@ void display(bool rebuild, F32 zoom_factor, int subfield, bool for_snapshot)
         {
             gPipeline.renderDeferredLighting();
         }
+        PATXRSession::renderEyes(); // <PAT:XR/> VR: finish left eye, render right eye
 
         LLPipeline::sUnderWaterRender = false;
 
