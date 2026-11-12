@@ -6168,5 +6168,10 @@ Der VR-Modus wurde beendet, [APP_NAME] ist wieder im Desktop-Modus.
 [REASON]
 		<usetemplate name="okbutton" yestext="OK"/>
 	</notification>
+	<notification name="PatVRWaiting">
+Warte auf die Brille: WiVRn-Server starten, Brille aufsetzen und in der WiVRn-App verbinden. Der VR-Modus startet dann automatisch.
+Strg+Umschalt+V (VR-Modus) bricht ab.
+		<usetemplate name="okbutton" yestext="OK"/>
+	</notification>
 	<!-- </PAT> -->
 </notifications>

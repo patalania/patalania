@@ -40,6 +40,41 @@ namespace
     XrGraphicsBindingOpenGLXlibKHR sBinding{ XR_TYPE_GRAPHICS_BINDING_OPENGL_XLIB_KHR };
 }
 
+void PATXRPlatform::prepareRuntime()
+{
+    // Respect an explicit choice or a registered active runtime.
+    if (getenv("XR_RUNTIME_JSON"))
+    {
+        return;
+    }
+    const char* home = getenv("HOME");
+    const char* xdg_config = getenv("XDG_CONFIG_HOME");
+    std::string config = xdg_config && *xdg_config ? std::string(xdg_config) : std::string(home ? home : "") + "/.config";
+    const std::string registered[] = { config + "/openxr/1/active_runtime.json", "/etc/xdg/openxr/1/active_runtime.json",
+                                       "/etc/openxr/1/active_runtime.json" };
+    for (const std::string& path : registered)
+    {
+        if (LLFile::isfile(path))
+        {
+            return;
+        }
+    }
+    // WiVRn removes its active_runtime.json link when the server stops and may not
+    // restore it; use the Flatpak runtime directly (system or user installation).
+    const std::string candidates[] = {
+        "/var/lib/flatpak/app/io.github.wivrn.wivrn/current/active/files/share/openxr/1/openxr_wivrn.json",
+        std::string(home ? home : "") + "/.local/share/flatpak/app/io.github.wivrn.wivrn/current/active/files/share/openxr/1/openxr_wivrn.json" };
+    for (const std::string& path : candidates)
+    {
+        if (LLFile::isfile(path))
+        {
+            setenv("XR_RUNTIME_JSON", path.c_str(), 0);
+            LL_INFOS("PATXR") << "No active OpenXR runtime registered, using " << path << LL_ENDL;
+            return;
+        }
+    }
+}
+
 const char* PATXRPlatform::graphicsExtensionName()
 {
     return XR_KHR_OPENGL_ENABLE_EXTENSION_NAME;

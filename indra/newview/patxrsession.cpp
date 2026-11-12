@@ -33,6 +33,8 @@
 #if PAT_XR
 
 #include "patxrsession_platform.h"
+#include "patxrhands.h"
+#include "patxrkeyboard.h"
 
 #include "llgl.h"
 #include "llnotificationsutil.h"
@@ -43,6 +45,9 @@
 #include <openxr/openxr_platform.h>
 
 #include <cstring>
+#include <memory>
+#include <mutex>
+#include <thread>
 #include <vector>
 
 namespace
@@ -72,6 +77,9 @@ namespace
         bool stopRequested = false; // we asked the runtime to end the session
         F64 stopRequestTime = 0.0;
         U64 frames = 0;
+        bool handExt = false;
+        F64 lastFrameTime = 0.0;
+        std::vector<XrVector3f> palms;
     };
 
     XRState sXR;
@@ -89,6 +97,8 @@ namespace
     // Release everything in reverse order. Safe to call in any state.
     void destroyAll()
     {
+        PATXRKeyboard::release();
+        PATXRHands::release();
         if (sXR.fbo)
         {
             glDeleteFramebuffers(1, &sXR.fbo);
@@ -191,10 +201,25 @@ namespace
         return 0;
     }
 
-    // Returns an empty string on success, otherwise a readable reason.
-    std::string start()
+    // Connection to the runtime (instance + headset). Runs on a worker thread:
+    // WiVRn blocks xrCreateInstance while its server has no headset connected,
+    // which must not freeze the viewer. Uses no shared state except its arguments.
+    struct PendingConnect
     {
+        std::mutex mutex;
+        bool done = false;       // worker finished (guarded by mutex)
+        bool abandoned = false;  // VR switched off meanwhile: worker cleans up (guarded)
+        XrInstance instance = XR_NULL_HANDLE;
+        XrSystemId system = XR_NULL_SYSTEM_ID;
+        bool handExt = false;
         std::string error;
+    };
+    std::shared_ptr<PendingConnect> sPending;
+    F64 sPendingSince = 0.0;
+    bool sWaitNotified = false;
+
+    std::string connect(XrInstance& instance, XrSystemId& system, bool& hand_ext)
+    {
         const char* gfx_ext = PATXRPlatform::graphicsExtensionName();
 
         // 1. Runtime + graphics extension (fails cleanly when no runtime is installed).
@@ -209,24 +234,26 @@ namespace
             return std::string("The OpenXR runtime does not support ") + gfx_ext;
         }
 
-        // 2. Instance.
+        // 2. Instance (WiVRn: returns only once a headset is connected).
         XrInstanceCreateInfo ici{ XR_TYPE_INSTANCE_CREATE_INFO };
         LLStringUtil::copy(ici.applicationInfo.applicationName, "Patalania", XR_MAX_APPLICATION_NAME_SIZE);
         ici.applicationInfo.applicationVersion = 1;
         LLStringUtil::copy(ici.applicationInfo.engineName, "Patalania", XR_MAX_ENGINE_NAME_SIZE);
         ici.applicationInfo.engineVersion = 1;
         ici.applicationInfo.apiVersion = XR_API_VERSION_1_0;
-        ici.enabledExtensionCount = 1;
-        ici.enabledExtensionNames = &gfx_ext;
-        res = xrCreateInstance(&ici, &sXR.instance);
+        hand_ext = hasExtension(XR_EXT_HAND_TRACKING_EXTENSION_NAME);
+        const char* extensions[2] = { gfx_ext, XR_EXT_HAND_TRACKING_EXTENSION_NAME };
+        ici.enabledExtensionCount = hand_ext ? 2 : 1;
+        ici.enabledExtensionNames = extensions;
+        res = xrCreateInstance(&ici, &instance);
         if (XR_FAILED(res))
         {
-            sXR.instance = XR_NULL_HANDLE;
+            instance = XR_NULL_HANDLE;
             return llformat("Could not connect to the OpenXR runtime (XrResult %d). Is the WiVRn server running?", (S32)res);
         }
 
         XrInstanceProperties iprops{ XR_TYPE_INSTANCE_PROPERTIES };
-        if (XR_SUCCEEDED(xrGetInstanceProperties(sXR.instance, &iprops)))
+        if (XR_SUCCEEDED(xrGetInstanceProperties(instance, &iprops)))
         {
             LL_INFOS("PATXR") << "OpenXR runtime: " << iprops.runtimeName << " "
                               << XR_VERSION_MAJOR(iprops.runtimeVersion) << "."
@@ -237,22 +264,61 @@ namespace
         // 3. Headset.
         XrSystemGetInfo sgi{ XR_TYPE_SYSTEM_GET_INFO };
         sgi.formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
-        res = xrGetSystem(sXR.instance, &sgi, &sXR.system);
+        res = xrGetSystem(instance, &sgi, &system);
         if (res == XR_ERROR_FORM_FACTOR_UNAVAILABLE)
         {
             return "No headset connected. Connect the headset to the WiVRn server and try again.";
         }
-        if (failed(res, "xrGetSystem", error))
+        if (XR_FAILED(res))
         {
-            return error;
+            return llformat("xrGetSystem failed (XrResult %d)", (S32)res);
         }
         XrSystemProperties sprops{ XR_TYPE_SYSTEM_PROPERTIES };
-        if (XR_SUCCEEDED(xrGetSystemProperties(sXR.instance, sXR.system, &sprops)))
+        if (XR_SUCCEEDED(xrGetSystemProperties(instance, system, &sprops)))
         {
             LL_INFOS("PATXR") << "Headset: " << sprops.systemName << ", max swapchain "
                               << sprops.graphicsProperties.maxSwapchainImageWidth << "x"
                               << sprops.graphicsProperties.maxSwapchainImageHeight << LL_ENDL;
         }
+        return std::string();
+    }
+
+    void startConnect()
+    {
+        PATXRPlatform::prepareRuntime(); // main thread: may set the loader environment
+        auto pending = std::make_shared<PendingConnect>();
+        sPending = pending;
+        sPendingSince = LLTimer::getTotalSeconds();
+        sWaitNotified = false;
+        std::thread([pending]()
+        {
+            XrInstance instance = XR_NULL_HANDLE;
+            XrSystemId system = XR_NULL_SYSTEM_ID;
+            bool hand_ext = false;
+            std::string error = connect(instance, system, hand_ext);
+            std::lock_guard<std::mutex> lock(pending->mutex);
+            pending->done = true;
+            if (pending->abandoned || !error.empty())
+            {
+                if (instance != XR_NULL_HANDLE)
+                {
+                    xrDestroyInstance(instance);
+                }
+                instance = XR_NULL_HANDLE;
+            }
+            pending->instance = instance;
+            pending->system = system;
+            pending->handExt = hand_ext;
+            pending->error = error;
+        }).detach();
+    }
+
+    // Returns an empty string on success, otherwise a readable reason.
+    // Needs sXR.instance/system from connect(); runs on the main thread (GL).
+    std::string start()
+    {
+        std::string error;
+        const bool hand_ext = sXR.handExt;
 
         // 4. Stereo view configuration.
         uint32_t view_count = 0;
@@ -277,7 +343,24 @@ namespace
         if (XR_SUCCEEDED(xrEnumerateEnvironmentBlendModes(sXR.instance, sXR.system, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
                                                           8, &blend_count, blend_modes)) && blend_count > 0)
         {
+            // Phase 6b: ALPHA_BLEND lets WiVRn show the headset camera where alpha is 0
+            // (keyboard window). Without it the runtime offers no passthrough.
             sXR.blendMode = blend_modes[0];
+            std::string modes;
+            for (uint32_t i = 0; i < blend_count; ++i)
+            {
+                modes += llformat(" %d", (S32)blend_modes[i]);
+                if (blend_modes[i] == XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND)
+                {
+                    sXR.blendMode = XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND;
+                }
+            }
+            LL_INFOS("PATXR") << "Blend modes offered:" << modes << LL_ENDL;
+            if (sXR.blendMode != XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND)
+            {
+                LL_WARNS("PATXR") << "No ALPHA_BLEND: keyboard passthrough window not possible "
+                                     "(headset without passthrough, or WiVRn passthrough disabled)" << LL_ENDL;
+            }
         }
 
         // 5. OpenGL requirements (mandatory call before xrCreateSession).
@@ -362,6 +445,8 @@ namespace
         LL_INFOS("PATXR") << "Swapchains: " << sXR.eyes[0].width << "x" << sXR.eyes[0].height << " per eye, format 0x"
                           << std::hex << format << std::dec << ", " << sXR.eyes[0].images.size() << " images, blend mode "
                           << (S32)sXR.blendMode << LL_ENDL;
+
+        PATXRHands::init(sXR.instance, sXR.system, sXR.session, hand_ext);
 
         glGenFramebuffers(1, &sXR.fbo);
         return std::string();
@@ -475,7 +560,7 @@ namespace
     }
 
     // Phase 6 test image: one colour per eye, white square in the centre.
-    void drawTestImage(const EyeSwapchain& eye, GLuint texture, U32 eye_index)
+    void drawTestImage(const EyeSwapchain& eye, GLuint texture, U32 eye_index, const XrView& view)
     {
         GLint old_fbo = 0;
         GLint old_viewport[4] = { 0 };
@@ -501,11 +586,11 @@ namespace
         glDisable(GL_SCISSOR_TEST);
         if (eye_index == 0)
         {
-            glClearColor(0.8f, 0.f, 0.f, 1.f); // left: red
+            glClearColor(0.45f, 0.f, 0.f, 1.f); // left: red
         }
         else
         {
-            glClearColor(0.f, 0.f, 0.8f, 1.f); // right: blue
+            glClearColor(0.f, 0.f, 0.45f, 1.f); // right: blue
         }
         glClear(GL_COLOR_BUFFER_BIT);
 
@@ -514,6 +599,10 @@ namespace
         glScissor((eye.width - size) / 2, (eye.height - size) / 2, size, size);
         glClearColor(1.f, 1.f, 1.f, 1.f);
         glClear(GL_COLOR_BUFFER_BIT);
+        glDisable(GL_SCISSOR_TEST);
+
+        // Phase 6b: transparent keyboard window (passthrough) in the LOCAL space.
+        PATXRKeyboard::draw(view, sXR.palms);
 
         glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, old_fbo);
@@ -565,6 +654,7 @@ namespace
                                      (view_state.viewStateFlags & XR_VIEW_STATE_ORIENTATION_VALID_BIT);
             if (views_valid)
             {
+                PATXRHands::locate(sXR.space, frame_state.predictedDisplayTime, sXR.palms);
                 for (U32 i = 0; i < 2; ++i)
                 {
                     EyeSwapchain& eye = sXR.eyes[i];
@@ -585,7 +675,7 @@ namespace
                         return;
                     }
 
-                    drawTestImage(eye, eye.images[index].image, i);
+                    drawTestImage(eye, eye.images[index].image, i, views[i]);
 
                     XrSwapchainImageReleaseInfo ri{ XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO };
                     xrReleaseSwapchainImage(eye.handle, &ri);
@@ -598,6 +688,8 @@ namespace
                     proj_views[i].subImage.imageArrayIndex = 0;
                 }
                 layer.space = sXR.space;
+                layer.layerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT |
+                                   XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT;
                 layer.viewCount = 2;
                 layer.views = proj_views;
                 layer_count = 1;
@@ -632,15 +724,60 @@ void PATXRSession::frame()
     static LLCachedControl<bool> vr_enabled(gSavedSettings, SETTING_ENABLED, false);
     const bool want = vr_enabled;
 
-    if (want && sXR.instance == XR_NULL_HANDLE)
+    if (sPending)
     {
-        LL_INFOS("PATXR") << "Entering VR mode" << LL_ENDL;
+        // Connection attempt in progress on the worker thread.
+        std::unique_lock<std::mutex> lock(sPending->mutex);
+        if (!sPending->done)
+        {
+            sPending->abandoned = !want;
+            if (!want)
+            {
+                LL_INFOS("PATXR") << "VR mode switched off while waiting for the runtime" << LL_ENDL;
+                lock.unlock();
+                sPending.reset();
+                return;
+            }
+            if (!sWaitNotified && LLTimer::getTotalSeconds() - sPendingSince > 2.0)
+            {
+                sWaitNotified = true;
+                LL_INFOS("PATXR") << "Waiting for the runtime / headset" << LL_ENDL;
+                lock.unlock();
+                LLNotificationsUtil::add("PatVRWaiting");
+            }
+            return;
+        }
+        auto pending = sPending;
+        sPending.reset();
+        lock.unlock();
+        if (!pending->error.empty())
+        {
+            if (want)
+            {
+                fallBackToDesktop("PatVRUnavailable", pending->error);
+            }
+            return;
+        }
+        if (!want)
+        {
+            xrDestroyInstance(pending->instance);
+            return;
+        }
+        sXR.instance = pending->instance;
+        sXR.system = pending->system;
+        sXR.handExt = pending->handExt;
         std::string error = start();
         if (!error.empty())
         {
             fallBackToDesktop("PatVRUnavailable", error);
             return;
         }
+    }
+    else if (want && sXR.instance == XR_NULL_HANDLE)
+    {
+        LL_INFOS("PATXR") << "Entering VR mode" << LL_ENDL;
+        startConnect();
+        return;
     }
 
     if (sXR.instance == XR_NULL_HANDLE)
@@ -664,12 +801,23 @@ void PATXRSession::frame()
 
     if (sXR.running)
     {
+        const F64 now = LLTimer::getTotalSeconds();
+        const F32 dt = sXR.lastFrameTime > 0.0 ? (F32)(now - sXR.lastFrameTime) : 0.f;
+        sXR.lastFrameTime = now;
+        PATXRKeyboard::update(dt);
         renderFrame();
     }
 }
 
 void PATXRSession::shutdown()
 {
+    if (sPending)
+    {
+        // A worker may still wait for the runtime: let it clean up on its own.
+        std::lock_guard<std::mutex> lock(sPending->mutex);
+        sPending->abandoned = true;
+    }
+    sPending.reset();
     if (sXR.instance != XR_NULL_HANDLE)
     {
         LL_INFOS("PATXR") << "Viewer shutdown, releasing OpenXR" << LL_ENDL;

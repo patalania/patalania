@@ -15605,5 +15605,15 @@ VR mode ended, [APP_NAME] is back in desktop mode.
      name="okbutton"
      yestext="OK"/>
   </notification>
+  <notification
+   icon="alertmodal.tga"
+   name="PatVRWaiting"
+   type="alert">
+Waiting for the headset: start the WiVRn server, put on the headset and connect in the WiVRn app. VR mode starts automatically.
+Press Ctrl+Shift+V (VR Mode) to cancel.
+    <usetemplate
+     name="okbutton"
+     yestext="OK"/>
+  </notification>
   <!-- </PAT> -->
 </notifications>

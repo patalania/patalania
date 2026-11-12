@@ -32,6 +32,10 @@
 //   patxrsession_win.cpp    -> XrGraphicsBindingOpenGLWin32KHR (WGL, later)
 namespace PATXRPlatform
 {
+    // Called before the first OpenXR call: lets the loader find a runtime even
+    // when no active runtime is registered (Linux: WiVRn Flatpak fallback).
+    void prepareRuntime();
+
     // Name of the OpenXR graphics extension this platform needs.
     const char* graphicsExtensionName();
 
