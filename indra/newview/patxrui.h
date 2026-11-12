@@ -65,6 +65,8 @@ namespace PATXRUI
     // True when the UI goes into the panel (VR running, in the world).
     void setActive(bool active);
     bool isActive();
+    // Whole UI hidden with Ctrl+Shift+Space.
+    bool isHidden();
 
     // render_ui hooks.
     void beginCapture();

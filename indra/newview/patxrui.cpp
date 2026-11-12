@@ -857,6 +857,11 @@ bool PATXRUI::isActive()
     return sActive;
 }
 
+bool PATXRUI::isHidden()
+{
+    return sHidden;
+}
+
 void PATXRUI::beginCapture()
 {
     if (!sActive || sCapturing || !gViewerWindow || !initGL())

@@ -40,6 +40,7 @@
 #include "llscrollcontainer.h"
 #include "llworld.h"
 #include "rlvactions.h"
+#include "patxrsession.h" // <PAT:XR/>
 
 static LLDefaultChildRegistry::Register<FSNearbyChatControl> r("fs_nearby_chat_control");
 
@@ -242,6 +243,12 @@ void FSNearbyChatControl::autohide(bool after_send)
 {
     if (isDefault())
     {
+        if (PATXRSession::uiHidden()) // <PAT:XR> VR, UI hidden (Ctrl+Shift+Space): Enter shows the bar only for one message
+        {
+            setFocus(false);
+            FSNearbyChat::instance().showDefaultChatBar(false);
+            return;
+        } // </PAT:XR>
         const bool in_mouselook = gAgentCamera.cameraMouselook();
         const bool show_interface_in_mouselook = gSavedSettings.getBOOL("FSShowInterfaceInMouselook");
         const bool closeChatOnReturn = gSavedSettings.getBOOL("CloseChatOnReturn")

@@ -97,6 +97,8 @@ public:
     static F32 uiScale();
     // LLViewerWindow::updateUI(): the VR pointer may be outside the window (beyond the panel, in the world).
     static bool pointerBeyondWindow();
+    // FSNearbyChatControl::autohide(): the whole UI is hidden in VR (the chat bar hides again after use).
+    static bool uiHidden();
     // LLViewerWindow::performPick(): pick callbacks (manipulator highlights) run
     // with the panel camera, like the input handling between frames.
     struct PointerCamera

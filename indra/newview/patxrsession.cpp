@@ -1449,6 +1449,11 @@ bool PATXRSession::pointerBeyondWindow()
     return sXR.uiActive && sVirtualPointer;
 }
 
+bool PATXRSession::uiHidden()
+{
+    return sXR.uiActive && PATXRUI::isHidden();
+}
+
 PATXRSession::PointerCamera::PointerCamera()
 {
     XrVector3f origin, at, up;
@@ -1585,6 +1590,11 @@ F32 PATXRSession::uiScale()
 }
 
 bool PATXRSession::pointerBeyondWindow()
+{
+    return false;
+}
+
+bool PATXRSession::uiHidden()
 {
     return false;
 }
