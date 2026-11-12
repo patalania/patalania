@@ -7419,6 +7419,7 @@ void LLViewerWindow::setUIVisibility(bool visible)
 
     if (!visible)
     {
+        if (!PATXRSession::keepCameraOnUIHide()) // <PAT:XR/> VR: hiding the UI keeps mouselook
         gAgentCamera.changeCameraToThirdPerson(false);
         gFloaterView->hideAllFloaters();
     }

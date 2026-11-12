@@ -113,6 +113,15 @@ public:
     // camera (front of the body); in VR it stays at the avatar's depth. Returns
     // what to add back (zero outside VR).
     static LLVector3 nameTagDepth(const LLVector3& towards_camera);
+
+    // Phase 9:
+    // LLManip::renderXYZ(): the X/Y/Z readout of the build tools is drawn flat on
+    // the screen; in an eye it would sit at a different place in each eye. True =
+    // skip it there, it is drawn onto the UI panel (top centre) instead.
+    static bool deferXYZ(const LLVector3& vec);
+    // LLViewerWindow::setUIVisibility(): hiding the UI in VR must not leave
+    // mouselook (Firestorm switches to third person when the UI is hidden).
+    static bool keepCameraOnUIHide();
 };
 
 #endif // PAT_XRSESSION_H

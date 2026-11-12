@@ -42,6 +42,7 @@
 #include "llagent.h"
 #include "llgl.h"
 #include "llkeyboard.h"
+#include "llmanip.h"
 #include "llnotificationsutil.h"
 #include "llstartup.h"
 #include "llviewercontrol.h"
@@ -1378,6 +1379,12 @@ void PATXRSession::restoreCamera()
     PATXRStereo::restoreCamera();
 }
 
+namespace
+{
+    bool sXYZPending = false;
+    LLVector3 sXYZ;
+}
+
 void PATXRSession::beginUI()
 {
     PATXRUI::beginCapture();
@@ -1385,6 +1392,15 @@ void PATXRSession::beginUI()
 
 void PATXRSession::endUI()
 {
+    if (sXYZPending)
+    {
+        // Build tools readout of this frame, on top of the UI (top centre, as on the desktop).
+        sXYZPending = false;
+        if (PATXRUI::capturing())
+        {
+            LLManip::renderXYZ(sXYZ);
+        }
+    }
     PATXRUI::endCapture();
 }
 
@@ -1452,6 +1468,22 @@ bool PATXRSession::pointerBeyondWindow()
 bool PATXRSession::uiHidden()
 {
     return sXR.uiActive && PATXRUI::isHidden();
+}
+
+bool PATXRSession::deferXYZ(const LLVector3& vec)
+{
+    if (!PATXRStereo::inEyes())
+    {
+        return false;
+    }
+    sXYZ = vec;
+    sXYZPending = sXR.uiActive;
+    return true;
+}
+
+bool PATXRSession::keepCameraOnUIHide()
+{
+    return sXR.running;
 }
 
 PATXRSession::PointerCamera::PointerCamera()
@@ -1595,6 +1627,16 @@ bool PATXRSession::pointerBeyondWindow()
 }
 
 bool PATXRSession::uiHidden()
+{
+    return false;
+}
+
+bool PATXRSession::deferXYZ(const LLVector3&)
+{
+    return false;
+}
+
+bool PATXRSession::keepCameraOnUIHide()
 {
     return false;
 }

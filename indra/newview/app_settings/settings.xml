@@ -27233,6 +27233,39 @@ Change of this parameter will affect the layout of buttons in notification toast
       <key>Value</key>
       <real>0.04</real>
     </map>
+    <key>PATVRFocusPitch</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: with the camera focused away from the own avatar (Alt camera, Alt+E/Alt+C) the view takes over the camera's pitch towards the focus (smoothed). Off: only the yaw, the horizon stays level.</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>Boolean</string>
+      <key>Value</key>
+      <integer>1</integer>
+    </map>
+    <key>PATVRMouselookMousePitch</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR mouselook: moving the mouse up/down also pitches the view (smoothed). Off: pitch only with the headset.</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>Boolean</string>
+      <key>Value</key>
+      <integer>0</integer>
+    </map>
+    <key>PATVRPitchSmoothing</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: time constant in seconds for taking over the camera pitch (PATVRFocusPitch, PATVRMouselookMousePitch); 0 = immediate.</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>F32</string>
+      <key>Value</key>
+      <real>0.25</real>
+    </map>
     <key>PATVRNameTagFullSizeDistance</key>
     <map>
       <key>Comment</key>

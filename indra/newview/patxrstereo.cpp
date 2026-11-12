@@ -116,7 +116,7 @@ namespace
     BaseCamera sBase;
     // Mapping LOCAL space -> agent frame of the last eye frame (phase 8 rays).
     bool sHaveMap = false;
-    LLVector3 sMapBase, sMapFwd, sMapLeft;
+    LLVector3 sMapBase, sMapFwd, sMapLeft, sMapUp;
     // Firestorm's camera while the pointer camera is set between frames.
     bool sPointerCamera = false;
     BaseCamera sSavedCamera;
@@ -153,9 +153,38 @@ namespace
     }
 
     // OpenXR view axes (x right, y up, -z forward) -> base camera frame (forward, left, up).
-    LLVector3 toWorld(const Vec3& v, const LLVector3& fwd, const LLVector3& left)
+    LLVector3 toWorld(const Vec3& v, const LLVector3& fwd, const LLVector3& left, const LLVector3& up)
     {
-        return fwd * (-v.z) + left * (-v.x) + LLVector3::z_axis * v.y;
+        return fwd * (-v.z) + left * (-v.x) + up * v.y;
+    }
+
+    // Phase 9: pitch of the base camera. Normally only the yaw of the viewer
+    // camera is used (level horizon, the head does the pitching). With the
+    // camera focused on something else than the own avatar (Alt camera, Alt+E /
+    // Alt+C) its pitch towards the focus is taken over, optionally also the
+    // mouse pitch in mouselook. Smoothed, roll stays 0.
+    F32 sPitch = 0.f;           // radians, positive = looking up
+    F64 sPitchTime = 0.0;
+    constexpr F32 MAX_PITCH = 80.f * DEG_TO_RAD;
+
+    F32 updatePitch(const LLVector3& cam_at)
+    {
+        static LLCachedControl<bool> focus_pitch(gSavedSettings, "PATVRFocusPitch", true);
+        static LLCachedControl<bool> mouselook_pitch(gSavedSettings, "PATVRMouselookMousePitch", false);
+        static LLCachedControl<F32> smoothing(gSavedSettings, "PATVRPitchSmoothing", 0.25f);
+        const bool mouselook = gAgentCamera.cameraMouselook();
+        const bool focus = !mouselook && !gAgentCamera.getFocusOnAvatar();
+        F32 target = 0.f;
+        if ((focus && focus_pitch) || (mouselook && mouselook_pitch))
+        {
+            target = llclamp(asinf(llclamp(cam_at.mV[VZ], -1.f, 1.f)), -MAX_PITCH, MAX_PITCH);
+        }
+        const F64 now = LLTimer::getTotalSeconds();
+        const F32 dt = sPitchTime > 0.0 ? llclamp((F32)(now - sPitchTime), 0.f, 0.25f) : 1.f;
+        sPitchTime = now;
+        const F32 tau = llclamp((F32)smoothing, 0.f, 2.f);
+        sPitch = tau < 0.001f ? target : sPitch + (target - sPitch) * (1.f - expf(-dt / tau));
+        return sPitch;
     }
 
     glm::mat4 frustumOf(F32 tan_l, F32 tan_r, F32 tan_d, F32 tan_u, F32 n, F32 f)
@@ -348,6 +377,8 @@ bool PATXRStereo::init(S32 width, S32 height)
     sInitialised = true;
     sHaveRef = false;
     sEyeFrames = 0;
+    sPitch = 0.f;
+    sPitchTime = 0.0;
     LL_INFOS("PATXR") << "Stereo rendering ready: " << sW << "x" << sH << " per eye" << LL_ENDL;
     return true;
 }
@@ -425,9 +456,16 @@ bool PATXRStereo::beginEyes(const XrView views[2])
         }
     }
     const LLVector3 left = LLVector3::z_axis % fwd;
+    // Pitch about the (horizontal) left axis: no roll.
+    const F32 pitch = updatePitch(sBase.at);
+    const F32 cp = cosf(pitch), sp = sinf(pitch);
+    const LLVector3 level_fwd = fwd;
+    fwd = level_fwd * cp + LLVector3::z_axis * sp;
+    const LLVector3 up = LLVector3::z_axis * cp - level_fwd * sp;
     sMapBase = eye_base;
     sMapFwd = fwd;
     sMapLeft = left;
+    sMapUp = up;
     sHaveMap = true;
 
     // Eye poses in the agent frame; frusta from the runtime's (asymmetric) FOV.
@@ -438,10 +476,10 @@ bool PATXRStereo::beginEyes(const XrView views[2])
     {
         const XrPosef& pose = views[i].pose;
         const Vec3 rel = unyaw({ pose.position.x - sRefPos.x, pose.position.y - sRefPos.y, pose.position.z - sRefPos.z });
-        sEyeOrigin[i] = eye_base + toWorld(rel, fwd, left);
-        sEyeAt[i] = toWorld(unyaw(rotate(pose.orientation, { 0.f, 0.f, -1.f })), fwd, left);
-        sEyeLeft[i] = toWorld(unyaw(rotate(pose.orientation, { -1.f, 0.f, 0.f })), fwd, left);
-        sEyeUp[i] = toWorld(unyaw(rotate(pose.orientation, { 0.f, 1.f, 0.f })), fwd, left);
+        sEyeOrigin[i] = eye_base + toWorld(rel, fwd, left, up);
+        sEyeAt[i] = toWorld(unyaw(rotate(pose.orientation, { 0.f, 0.f, -1.f })), fwd, left, up);
+        sEyeLeft[i] = toWorld(unyaw(rotate(pose.orientation, { -1.f, 0.f, 0.f })), fwd, left, up);
+        sEyeUp[i] = toWorld(unyaw(rotate(pose.orientation, { 0.f, 1.f, 0.f })), fwd, left, up);
         sEyeAt[i].normVec();
         sEyeLeft[i].normVec();
         sEyeUp[i].normVec();
@@ -688,7 +726,7 @@ bool PATXRStereo::roomPointToAgent(const XrVector3f& p, LLVector3& out)
     {
         return false;
     }
-    out = sMapBase + toWorld(unyaw({ p.x - sRefPos.x, p.y - sRefPos.y, p.z - sRefPos.z }), sMapFwd, sMapLeft);
+    out = sMapBase + toWorld(unyaw({ p.x - sRefPos.x, p.y - sRefPos.y, p.z - sRefPos.z }), sMapFwd, sMapLeft, sMapUp);
     return true;
 }
 
@@ -698,7 +736,7 @@ bool PATXRStereo::roomDirToAgent(const XrVector3f& d, LLVector3& out)
     {
         return false;
     }
-    out = toWorld(unyaw({ d.x, d.y, d.z }), sMapFwd, sMapLeft);
+    out = toWorld(unyaw({ d.x, d.y, d.z }), sMapFwd, sMapLeft, sMapUp);
     out.normVec();
     return true;
 }

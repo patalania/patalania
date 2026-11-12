@@ -27,6 +27,7 @@
 #include "llviewerprecompiledheaders.h"
 
 #include "llmanip.h"
+#include "patxrsession.h" // <PAT:XR/>
 
 #include "llmath.h"
 #include "v3math.h"
@@ -507,6 +508,7 @@ void LLManip::renderGuidelines(bool draw_x, bool draw_y, bool draw_z)
 
 void LLManip::renderXYZ(const LLVector3 &vec)
 {
+    if (PATXRSession::deferXYZ(vec)) return; // <PAT:XR/> VR: drawn onto the UI panel instead of into each eye
     const S32 PAD = 10;
     std::string feedback_string;
     S32 window_center_x = gViewerWindow->getWorldViewRectScaled().getWidth() / 2;
