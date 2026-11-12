@@ -557,7 +557,7 @@ Mauszeiger
   follows="left|top"
   height="16"
   initial_value="true"
-  label="Tafel als eigene Ebene (schärfer). Wirkt beim nächsten VR-Start."
+  label="Tafel als eigene Ebene (schärfer)"
   layout="topleft"
   left="12"
   top="360"
@@ -817,26 +817,214 @@ Rücktaste: neu einmessen
   layout="topleft"
   left="12"
   top="8"
-  height="330"
-  width="500"
+  height="32"
+  width="190"
   word_wrap="true"
-  name="keys_text">
+  font="SansSerifBold"
+  name="kr0_key">
 Strg+Umschalt+V
-    VR-Modus an / aus (auch wenn ein Textfeld den Fokus hat)
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="217"
+  top="8"
+  height="32"
+  width="295"
+  word_wrap="true"
+  name="kr0_desc">
+VR-Modus an / aus (auch wenn ein Textfeld den Fokus hat)
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="52"
+  height="32"
+  width="190"
+  word_wrap="true"
+  font="SansSerifBold"
+  name="kr1_key">
 Escape halten (1,5 Sekunden)
-    VR-Modus verlassen
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="217"
+  top="52"
+  height="32"
+  width="295"
+  word_wrap="true"
+  name="kr1_desc">
+VR-Modus verlassen
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="96"
+  height="32"
+  width="190"
+  word_wrap="true"
+  font="SansSerifBold"
+  name="kr2_key">
 Strg+Umschalt+Leertaste, kurz
-    ganze Oberfläche ausblenden / einblenden (HUDs inklusive; der Zeiger bleibt)
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="217"
+  top="96"
+  height="32"
+  width="295"
+  word_wrap="true"
+  name="kr2_desc">
+Ganze Oberfläche aus- / einblenden (HUDs inklusive; der Zeiger bleibt)
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="140"
+  height="32"
+  width="190"
+  word_wrap="true"
+  font="SansSerifBold"
+  name="kr3_key">
 Strg+Umschalt+Leertaste, halten
-    Tafel vor den Blick setzen; setzt zugleich das „Geradeaus“ der Welt für den Alt-Fokus
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="217"
+  top="140"
+  height="32"
+  width="295"
+  word_wrap="true"
+  name="kr3_desc">
+Tafel vor den Blick setzen; setzt zugleich das „Geradeaus“ der Welt für den Alt-Fokus
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="184"
+  height="32"
+  width="190"
+  word_wrap="true"
+  font="SansSerifBold"
+  name="kr4_key">
 Strg+Umschalt+Alt+Pos1 / Ende
-    Tafel größer / kleiner
-Strg+Umschalt+Pfeile, Bild auf/ab, Pos1/Ende, Einfg/Entf, Alt+Bild auf/ab, Rücktaste
-    Tastatur-Fenster: verschieben, Höhe, drehen, Breite, Tiefe, neu einmessen
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="217"
+  top="184"
+  height="32"
+  width="295"
+  word_wrap="true"
+  name="kr4_desc">
+Tafel größer / kleiner
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="228"
+  height="47"
+  width="190"
+  word_wrap="true"
+  font="SansSerifBold"
+  name="kr5_key">
+Strg+Umschalt + Pfeile, Bild auf/ab, Pos1/Ende, Einfg/Entf, Rücktaste
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="217"
+  top="228"
+  height="47"
+  width="295"
+  word_wrap="true"
+  name="kr5_desc">
+Tastatur-Fenster: verschieben, Höhe, drehen, Breite, neu einmessen (Alt+Bild auf/ab = Tiefe)
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="287"
+  height="17"
+  width="190"
+  word_wrap="true"
+  font="SansSerifBold"
+  name="kr6_key">
 M
-    Mouselook (wie am Monitor)
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="217"
+  top="287"
+  height="17"
+  width="295"
+  word_wrap="true"
+  name="kr6_desc">
+Mouselook (wie am Monitor)
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="316"
+  height="17"
+  width="190"
+  word_wrap="true"
+  font="SansSerifBold"
+  name="kr7_key">
 Alt + Klick
-    Fokus-Kamera (wie am Monitor)
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="217"
+  top="316"
+  height="17"
+  width="295"
+  word_wrap="true"
+  name="kr7_desc">
+Fokus-Kamera (wie am Monitor)
  </text>
 </panel>
 </tab_container>

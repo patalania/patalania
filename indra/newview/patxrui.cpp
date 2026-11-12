@@ -39,6 +39,7 @@
 #include "llgl.h"
 #include "llimagebmp.h"
 #include "llkeyboard.h"
+#include "lltoolfocus.h"
 #include "llrender.h"
 #include "llrendertarget.h"
 #include "llviewercontrol.h"
@@ -549,7 +550,10 @@ namespace
     // Alt shows it again (HUDs, menus, touch) - then the VR pointer is drawn too.
     bool pointerHidden()
     {
-        return gAgentCamera.cameraMouselook() && gViewerWindow->getWindow()->isCursorHidden();
+        // Also while the camera tool holds the mouse (left drag on the own avatar steers it; the
+        // desktop hides the cursor then, too).
+        return gViewerWindow->getWindow()->isCursorHidden() &&
+               (gAgentCamera.cameraMouselook() || LLToolCamera::getInstance()->hasMouseCapture());
     }
 
     // Pointer onto the panel texture (bound as draw target, blending set up).

@@ -28,6 +28,7 @@
 
 // File includes
 #include "lltoolfocus.h"
+#include "patxrsession.h" // <PAT:XR/>
 
 // Library includes
 #include "v3math.h"
@@ -248,6 +249,7 @@ void LLToolCamera::pickCallback(const LLPickInfo& pick_info)
              (hit_obj && hit_obj->isAttachment() && LLVOAvatar::findAvatarFromAttachment(hit_obj)->isSelf())))
         {
             LLToolCamera::getInstance()->mMouseSteering = true;
+            LL_INFOS("PATXR") << "Mouse steering started (click on own avatar)" << LL_ENDL; // <PAT:XR/>
         }
 
     }
@@ -451,6 +453,7 @@ bool LLToolCamera::handleHover(S32 x, S32 y, MASK mask)
                 {
                     if (mMouseSteering)
                     {
+                        if (!PATXRSession::isRunning()) // <PAT:XR/> VR: mouse steering only turns the avatar, the view is not tilted
                         gAgentCamera.cameraOrbitOver( -dy * RADIANS_PER_PIXEL );
                     }
                     else
