@@ -39,6 +39,7 @@
 #include "patxrstereo.h"
 
 #include "llgl.h"
+#include "llkeyboard.h"
 #include "llnotificationsutil.h"
 #include "llviewercontrol.h"
 
@@ -46,6 +47,8 @@
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
 
+#include <atomic>
+#include <chrono>
 #include <cstring>
 #include <memory>
 #include <mutex>
@@ -59,6 +62,53 @@ namespace
     constexpr const char* SETTING_HALF_RATE = "PATVRHalfRate";
     constexpr F64 STOP_TIMEOUT_SECONDS = 3.0;
     constexpr F64 STATS_INTERVAL_SECONDS = 10.0;
+    constexpr XrDuration SWAPCHAIN_WAIT_TIMEOUT = 100000000; // 100 ms, never block the viewer for good
+    constexpr F32 ESCAPE_HOLD_SECONDS = 1.5f;                // hold Escape = leave VR
+
+    // Diagnosis: a helper thread reports when the main thread is stuck inside a
+    // runtime call (WiVRn answers over a socket; if it never does, the viewer
+    // hangs there). Only logs, it cannot unblock the call.
+    std::atomic<const char*> sCallName{ nullptr };
+    std::atomic<F64> sCallStart{ 0.0 };
+    std::atomic<bool> sMonitorRunning{ false };
+
+    struct RuntimeCall
+    {
+        explicit RuntimeCall(const char* name)
+        {
+            sCallStart = LLTimer::getTotalSeconds();
+            sCallName = name;
+        }
+        ~RuntimeCall() { sCallName = nullptr; }
+    };
+
+    void startStallMonitor()
+    {
+        bool expected = false;
+        if (!sMonitorRunning.compare_exchange_strong(expected, true))
+        {
+            return;
+        }
+        std::thread([]()
+        {
+            const char* reported = nullptr;
+            while (sMonitorRunning)
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                const char* name = sCallName;
+                if (name && name != reported && LLTimer::getTotalSeconds() - sCallStart.load() > 2.0)
+                {
+                    LL_WARNS("PATXR") << "Main thread blocked in " << name << " for more than 2 s (OpenXR runtime not answering)" << LL_ENDL;
+                    reported = name;
+                }
+                else if (!name && reported)
+                {
+                    LL_INFOS("PATXR") << "Runtime answered again (" << reported << ")" << LL_ENDL;
+                    reported = nullptr;
+                }
+            }
+        }).detach();
+    }
 
     struct EyeSwapchain
     {
@@ -66,6 +116,7 @@ namespace
         int32_t width = 0;
         int32_t height = 0;
         std::vector<XrSwapchainImageOpenGLKHR> images;
+        S32 pending = -1; // acquired, wait timed out
     };
 
     struct XRState
@@ -112,6 +163,7 @@ namespace
         F64 statsEyeSeconds = 0.0;
         F64 statsEyeMax = 0.0;
         XrTime lastDisplayTime = 0;
+        U32 swapchainTimeouts = 0;
     };
 
     XRState sXR;
@@ -496,6 +548,7 @@ namespace
             return "Not enough video memory for the eye images (try a lower PATVRResolutionScale)";
         }
         sXR.statsStart = LLTimer::getTotalSeconds();
+        startStallMonitor();
         return std::string();
     }
 
@@ -651,7 +704,23 @@ namespace
     {
         XrFrameWaitInfo fwi{ XR_TYPE_FRAME_WAIT_INFO };
         XrFrameState frame_state{ XR_TYPE_FRAME_STATE };
-        XrResult res = xrWaitFrame(sXR.session, &fwi, &frame_state);
+        const F64 wait_start = LLTimer::getTotalSeconds();
+        XrResult res;
+        {
+            RuntimeCall call("xrWaitFrame");
+            res = xrWaitFrame(sXR.session, &fwi, &frame_state);
+        }
+        // WiVRn does not pace frames that are not shown (headset off the face,
+        // session SYNCHRONIZED): xrWaitFrame returned at ~170/s. Keep the pace.
+        if (XR_SUCCEEDED(res) && !frame_state.shouldRender && frame_state.predictedDisplayPeriod > 0)
+        {
+            const F64 period = frame_state.predictedDisplayPeriod / 1.0e9;
+            const F64 left = period - (LLTimer::getTotalSeconds() - wait_start);
+            if (left > 0.001)
+            {
+                ms_sleep((U32)(left * 1000.0));
+            }
+        }
         if (XR_FAILED(res))
         {
             fallBackToDesktop("PatVRStopped", "xrWaitFrame failed: " + resultString(res));
@@ -694,7 +763,11 @@ namespace
         sXR.views[0] = { XR_TYPE_VIEW };
         sXR.views[1] = { XR_TYPE_VIEW };
         uint32_t view_count = 0;
-        XrResult res = xrLocateViews(sXR.session, &vli, &view_state, 2, &view_count, sXR.views);
+        XrResult res;
+        {
+            RuntimeCall call("xrLocateViews");
+            res = xrLocateViews(sXR.session, &vli, &view_state, 2, &view_count, sXR.views);
+        }
         sXR.viewsValid = XR_SUCCEEDED(res) && view_count == 2 &&
                          (view_state.viewStateFlags & XR_VIEW_STATE_ORIENTATION_VALID_BIT);
         if (sXR.viewsValid)
@@ -721,7 +794,11 @@ namespace
         fei.environmentBlendMode = sXR.blendMode;
         fei.layerCount = proj_views ? 1 : 0;
         fei.layers = proj_views ? layers : nullptr;
-        XrResult res = xrEndFrame(sXR.session, &fei);
+        XrResult res;
+        {
+            RuntimeCall call("xrEndFrame");
+            res = xrEndFrame(sXR.session, &fei);
+        }
         if (XR_FAILED(res))
         {
             fallBackToDesktop("PatVRStopped", "xrEndFrame failed: " + resultString(res));
@@ -781,25 +858,52 @@ namespace
             }
             if (sXR.viewsValid)
             {
-                for (U32 i = 0; i < 2; ++i)
+                have_layer = true;
+                for (U32 i = 0; i < 2 && have_layer; ++i)
                 {
                     EyeSwapchain& eye = sXR.eyes[i];
-                    uint32_t index = 0;
-                    XrSwapchainImageAcquireInfo ai{ XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO };
-                    XrResult res = xrAcquireSwapchainImage(eye.handle, &ai, &index);
-                    if (XR_FAILED(res))
+                    // An image acquired earlier whose wait timed out is waited for
+                    // again instead of acquiring another one.
+                    if (eye.pending < 0)
                     {
-                        fallBackToDesktop("PatVRStopped", "xrAcquireSwapchainImage failed: " + resultString(res));
-                        return;
+                        uint32_t acquired = 0;
+                        XrSwapchainImageAcquireInfo ai{ XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO };
+                        XrResult res;
+                        {
+                            RuntimeCall call("xrAcquireSwapchainImage");
+                            res = xrAcquireSwapchainImage(eye.handle, &ai, &acquired);
+                        }
+                        if (XR_FAILED(res))
+                        {
+                            fallBackToDesktop("PatVRStopped", "xrAcquireSwapchainImage failed: " + resultString(res));
+                            return;
+                        }
+                        eye.pending = (S32)acquired;
                     }
                     XrSwapchainImageWaitInfo wi{ XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO };
-                    wi.timeout = XR_INFINITE_DURATION;
-                    res = xrWaitSwapchainImage(eye.handle, &wi);
+                    wi.timeout = SWAPCHAIN_WAIT_TIMEOUT;
+                    XrResult res;
+                    {
+                        RuntimeCall call("xrWaitSwapchainImage");
+                        res = xrWaitSwapchainImage(eye.handle, &wi);
+                    }
+                    if (res == XR_TIMEOUT_EXPIRED)
+                    {
+                        // Runtime still holds the image: show nothing new this frame.
+                        if (sXR.swapchainTimeouts++ % 50 == 0)
+                        {
+                            LL_WARNS("PATXR") << "Swapchain image not available in time (" << sXR.swapchainTimeouts << "x)" << LL_ENDL;
+                        }
+                        have_layer = false;
+                        break;
+                    }
                     if (XR_FAILED(res))
                     {
                         fallBackToDesktop("PatVRStopped", "xrWaitSwapchainImage failed: " + resultString(res));
                         return;
                     }
+                    const uint32_t index = (uint32_t)eye.pending;
+                    eye.pending = -1;
 
                     if (sXR.eyesRendered)
                     {
@@ -822,7 +926,6 @@ namespace
                     proj_views[i].subImage.imageRect.extent = { eye.width, eye.height };
                     proj_views[i].subImage.imageArrayIndex = 0;
                 }
-                have_layer = true;
             }
         }
 
@@ -865,6 +968,52 @@ namespace
     }
 }
 
+namespace
+{
+    // Ctrl+Shift+V and "hold Escape" read the raw key state, so they work with
+    // the keyboard focus anywhere (chat bar, text fields, mouselook). The menu
+    // accelerator for Ctrl+Shift+V only fires when no widget takes the key
+    // first; if it did fire this frame, the setting has already changed and we
+    // do not toggle a second time.
+    void handleKeys()
+    {
+        static bool v_was_down = false;
+        static bool escape_done = false;
+        static bool last_enabled = false;
+        const bool enabled = gSavedSettings.getBOOL(SETTING_ENABLED);
+        if (!gKeyboard)
+        {
+            last_enabled = enabled;
+            return;
+        }
+        const MASK mask = gKeyboard->currentMask(false);
+        const bool v_down = gKeyboard->getKeyDown('V') &&
+                            (mask & (MASK_CONTROL | MASK_SHIFT | MASK_ALT)) == (MASK_CONTROL | MASK_SHIFT);
+        if (v_down && !v_was_down && enabled == last_enabled)
+        {
+            LL_INFOS("PATXR") << "Ctrl+Shift+V: VR mode " << (enabled ? "off" : "on") << LL_ENDL;
+            gSavedSettings.setBOOL(SETTING_ENABLED, !enabled);
+        }
+        v_was_down = v_down;
+
+        if (gKeyboard->getKeyDown(KEY_ESCAPE))
+        {
+            if (!escape_done && gKeyboard->getKeyElapsedTime(KEY_ESCAPE) >= ESCAPE_HOLD_SECONDS &&
+                gSavedSettings.getBOOL(SETTING_ENABLED))
+            {
+                LL_INFOS("PATXR") << "Escape held: leaving VR mode" << LL_ENDL;
+                gSavedSettings.setBOOL(SETTING_ENABLED, false);
+                escape_done = true;
+            }
+        }
+        else
+        {
+            escape_done = false;
+        }
+        last_enabled = gSavedSettings.getBOOL(SETTING_ENABLED);
+    }
+}
+
 void PATXRSession::frame()
 {
     if (!gGLManager.mInited)
@@ -873,6 +1022,7 @@ void PATXRSession::frame()
     }
 
     static LLCachedControl<bool> vr_enabled(gSavedSettings, SETTING_ENABLED, false);
+    handleKeys();
     const bool want = vr_enabled;
 
     if (sPending)
@@ -1010,6 +1160,7 @@ bool PATXRSession::drawDesktopMirror()
 
 void PATXRSession::shutdown()
 {
+    sMonitorRunning = false;
     if (sPending)
     {
         // A worker may still wait for the runtime: let it clean up on its own.

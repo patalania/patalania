@@ -41,6 +41,7 @@
 #include "llviewercamera.h"
 #include "llviewercontrol.h"
 #include "llviewerwindow.h"
+#include "llvoavatar.h"
 #include "llwindow.h"
 #include "pipeline.h"
 
@@ -235,6 +236,22 @@ namespace
 
         loadMatrices(sProj[eye], sView[eye]);
         eyeViewport();
+        // Name tags and hover text are billboards built from the camera's up and
+        // left axes. With a tilted head they would roll along; give them a level
+        // camera frame (world up, turned only about the vertical axis). The
+        // matrices stay those of the eye, so positions are unchanged.
+        LLViewerCamera& cam = LLViewerCamera::instance();
+        LLVector3 level_at(sEyeAt[eye].mV[VX], sEyeAt[eye].mV[VY], 0.f);
+        if (level_at.normVec() < 0.1f)
+        {
+            // looking straight up or down: use the head's up/down axis instead
+            level_at = LLVector3(sEyeUp[eye].mV[VX], sEyeUp[eye].mV[VY], 0.f) * (sEyeAt[eye].mV[VZ] < 0.f ? 1.f : -1.f);
+            if (level_at.normVec() < 0.01f)
+            {
+                level_at = LLVector3::x_axis;
+            }
+        }
+        cam.setAxes(level_at, LLVector3::z_axis % level_at, LLVector3::z_axis);
         render_hud_elements();
         {
             LLGLSUIDefault gls_ui;
@@ -242,6 +259,7 @@ namespace
             LLHUDObject::renderAll();
         }
         gGL.flush();
+        cam.setAxes(sEyeAt[eye], sEyeLeft[eye], sEyeUp[eye]);
 
         forceOpaqueAlpha();
         PATXRKeyboard::draw(view, palms);
@@ -303,6 +321,11 @@ bool PATXRStereo::init(S32 width, S32 height)
         gViewerWindow->getWindow()->toggleVSync(false);
         sVSyncOff = true;
     }
+    // Own body visible when looking down in mouselook (Firestorm's "show avatar in
+    // mouselook"); only the runtime flag, the user's setting stays untouched.
+    // The full first-person mode follows in phase 9.
+    LLVOAvatar::sVisibleInFirstPerson = true;
+
     sInitialised = true;
     sHaveRef = false;
     sEyeFrames = 0;
@@ -551,6 +574,10 @@ void PATXRStereo::release(bool viewer_shutdown)
         if (sVSyncOff && gViewerWindow && gViewerWindow->getWindow())
         {
             gViewerWindow->getWindow()->toggleVSync(gSavedSettings.getBOOL("RenderVSyncEnable"));
+        }
+        if (sInitialised)
+        {
+            LLVOAvatar::sVisibleInFirstPerson = gSavedSettings.getBOOL("FirstPersonAvatarVisible");
         }
     }
     if (sInitialised)
