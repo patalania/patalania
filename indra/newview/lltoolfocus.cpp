@@ -453,7 +453,6 @@ bool LLToolCamera::handleHover(S32 x, S32 y, MASK mask)
                 {
                     if (mMouseSteering)
                     {
-                        if (!PATXRSession::isRunning()) // <PAT:XR/> VR: mouse steering only turns the avatar, the view is not tilted
                         gAgentCamera.cameraOrbitOver( -dy * RADIANS_PER_PIXEL );
                     }
                     else

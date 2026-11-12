@@ -35,6 +35,7 @@
 
 #include "llagent.h"
 #include "llagentcamera.h"
+#include "lltoolfocus.h"
 #include "llfontgl.h"
 #include "llgl.h"
 #include "llglstates.h"
@@ -180,7 +181,10 @@ namespace
         static LLCachedControl<F32> smoothing(gSavedSettings, "PATVRPitchSmoothing", 0.25f);
         static LLCachedControl<F32> blend_time(gSavedSettings, "PATVRPitchBlendTime", 0.3f);
         const bool mouselook = gAgentCamera.cameraMouselook();
-        const bool focus = !mouselook && !gAgentCamera.getFocusOnAvatar();
+        // Mouse steering (left button held on the own avatar) orbits the camera over/under the
+        // avatar like the focus camera: the same direct pitch take-over.
+        const bool steering = LLToolCamera::getInstance()->mouseSteerMode();
+        const bool focus = !mouselook && (!gAgentCamera.getFocusOnAvatar() || steering);
         const bool active = (focus && focus_pitch) || (mouselook && mouselook_pitch);
 
         const F64 now = LLTimer::getTotalSeconds();
