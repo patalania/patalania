@@ -544,12 +544,19 @@ namespace
         return img.tex ? &img : nullptr;
     }
 
+    // Mouselook steers the view with the mouse and hides the cursor; holding
+    // Alt shows it again (HUDs, menus, touch) - then the VR pointer is drawn too.
+    bool pointerHidden()
+    {
+        return gAgentCamera.cameraMouselook() && gViewerWindow->getWindow()->isCursorHidden();
+    }
+
     // Pointer onto the panel texture (bound as draw target, blending set up).
     void drawPointer()
     {
-        if (!gViewerWindow || !gViewerWindow->getWindow() || gAgentCamera.cameraMouselook())
+        if (!gViewerWindow || !gViewerWindow->getWindow() || pointerHidden())
         {
-            return; // mouselook steers the view with the mouse (camera modes: phase 9)
+            return;
         }
         const LLVector2& scale = gViewerWindow->getDisplayScale();
         const LLCoordGL mouse = gViewerWindow->getCurrentMouse();
@@ -1154,7 +1161,7 @@ bool PATXRUI::pointerCamera(XrVector3f& origin, XrVector3f& at, XrVector3f& up, 
 
 void PATXRUI::drawWorldPointer(const XrView& view, GLuint texture, S32 width, S32 height)
 {
-    if (!hasImage() || !gViewerWindow || !gViewerWindow->getWindow() || gAgentCamera.cameraMouselook() || sTexW <= 0)
+    if (!hasImage() || !gViewerWindow || !gViewerWindow->getWindow() || pointerHidden() || sTexW <= 0)
     {
         return;
     }

@@ -4528,6 +4528,7 @@ void LLViewerWindow::saveLastMouse(const LLCoordGL &point)
 {
     // Store last mouse location.
     // If mouse leaves window, pretend last point was on edge of window
+    if (PATXRSession::pointerBeyondWindow()) { mCurrentMousePoint = point; return; } // <PAT:XR/> VR: pointer beyond the panel
 
     if (point.mX < 0)
     {
