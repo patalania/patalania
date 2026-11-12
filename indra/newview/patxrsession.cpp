@@ -46,6 +46,8 @@
 #include "llviewershadermgr.h"
 #include "llnotificationsutil.h"
 #include "llstartup.h"
+#include "lluictrl.h"
+#include "lltrans.h"
 #include "llviewercontrol.h"
 #include "llviewerwindow.h"
 #include "llwindow.h"
@@ -264,8 +266,24 @@ namespace
         LL_WARNS("PATXR") << notification << ": " << reason << LL_ENDL;
         destroyAll();
         gSavedSettings.setBOOL(SETTING_ENABLED, false);
+        // Readable (translated) reason first, the technical text after it.
+        std::string key = "PatVRReasonGeneric";
+        if (reason.find("No OpenXR runtime") == 0 || reason.find("Could not connect to the OpenXR") == 0
+            || reason.find("The OpenXR runtime does not support") == 0)
+        {
+            key = "PatVRReasonNoRuntime";
+        }
+        else if (reason.find("No headset connected") == 0)
+        {
+            key = "PatVRReasonNoHeadset";
+        }
+        else if (reason.find("Connection to the headset") == 0 || reason.find("The OpenXR runtime ended") == 0
+                 || reason.find("The OpenXR runtime is shutting down") == 0)
+        {
+            key = "PatVRReasonLost";
+        }
         LLSD args;
-        args["REASON"] = reason;
+        args["REASON"] = LLTrans::getString(key) + "\n\n" + LLTrans::getString("PatVRReasonDetails") + " " + reason;
         LLNotificationsUtil::add(notification, args);
     }
 
@@ -1205,6 +1223,15 @@ namespace
 
 void PATXRSession::frame()
 {
+    // Buttons of the VR preferences page (panel_preferences_vr.xml).
+    static bool callbacks_registered = false;
+    if (!callbacks_registered)
+    {
+        callbacks_registered = true;
+        auto& reg = LLUICtrl::CommitCallbackRegistry::defaultRegistrar();
+        reg.add("PAT.VR.MeasureKeyboard", [](LLUICtrl*, const LLSD&) { PATXRKeyboard::requestMeasure(); });
+        reg.add("PAT.VR.CentreUI", [](LLUICtrl*, const LLSD&) { PATXRUI::recentre(); });
+    }
     if (!gGLManager.mInited)
     {
         return;

@@ -7409,4 +7409,22 @@ Ihre aktuelle Position: [AVATAR_POS]
 	<string name="FSMacOSNewViewerInstance">
 		Neue Viewer-Instanz
 	</string>
+
+	<!-- <PAT:XR> VR-Modus: Gründe in den Hinweisen -->
+	<string name="PatVRReasonNoRuntime">
+		Es wurde keine VR-Laufzeit gefunden oder sie antwortet nicht. WiVRn-Server starten und erneut versuchen.
+	</string>
+	<string name="PatVRReasonNoHeadset">
+		Es ist keine Brille verbunden. Brille mit dem WiVRn-Server verbinden und erneut versuchen.
+	</string>
+	<string name="PatVRReasonLost">
+		Die Verbindung zur Brille oder zur VR-Laufzeit wurde unterbrochen.
+	</string>
+	<string name="PatVRReasonGeneric">
+		Die VR-Laufzeit hat einen Fehler gemeldet.
+	</string>
+	<string name="PatVRReasonDetails">
+		Einzelheiten:
+	</string>
+	<!-- </PAT:XR> -->
 </strings>

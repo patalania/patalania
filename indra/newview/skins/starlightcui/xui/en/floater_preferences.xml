@@ -221,6 +221,15 @@ https://accounts.secondlife.com/change_email/
          layout="topleft"
          help_topic="preferences_firestorm_tab"
          name="firestorm" />
+        <!-- <PAT:XR> VR settings -->
+        <panel
+         class="panel_preference"
+         filename="panel_preferences_vr.xml"
+         label="VR"
+         layout="topleft"
+         help_topic="preferences_vr_tab"
+         name="vr" />
+        <!-- </PAT:XR> -->
         <panel
          class="panel_preference_opensim"
          filename="panel_preferences_opensim.xml"

@@ -38,6 +38,7 @@
 #include "llkeyboard.h"
 #include "llviewercontrol.h"
 
+#include <atomic>
 #include <cmath>
 
 namespace
@@ -69,8 +70,10 @@ namespace
     // Following the hands later on: only near the current window, blended in softly.
     constexpr F32 FOLLOW_MAX_DY = 0.10f;
     constexpr F32 FOLLOW_MAX_DIST = 0.25f;
-    constexpr F32 FOLLOW_WEIGHT = 0.35f;       // share of the new hand estimate per resting period
-    constexpr F32 SHOW_SMOOTHING = 0.25f;      // s, time constant of the shown window
+    constexpr F32 FOLLOW_WEIGHT = 0.30f;       // share of the new hand estimate per resting period
+    constexpr F32 FOLLOW_DEAD_DIST = 0.012f;   // m: smaller deviations are left alone (no constant drifting)
+    constexpr F32 FOLLOW_DEAD_YAW = 2.f * DEG_TO_RAD;
+    constexpr F32 SHOW_SMOOTHING = 0.60f;      // s, time constant of the shown window (hand placement; keys act at once)
     constexpr F64 SAVE_INTERVAL = 1.0;         // s between writes of the calibration settings
 
     struct Vec3 { F32 x, y, z; };
@@ -87,6 +90,7 @@ namespace
     bool sChanged = false;
     bool sWasHeld = false;
     bool sBackspaceHeld = false;
+    std::atomic<bool> sMeasureRequested{ false }; // from the preferences page
     bool sDirty = false;
     F64 sLastSave = 0.0;
     Vec3 sStillRef[2];
@@ -370,7 +374,10 @@ namespace
             logRejected(horiz > HANDS_MAX_DIST ? "hands too far apart (one hand on the mouse?)" : "hands too close together");
             return false;
         }
-        F32 yaw = atan2f(-(r.z - l.z), r.x - l.x); // axisX along left -> right hand
+        // Direction: the line from the left to the right hand (axisX along it).
+        // The fingers only serve as a check (a hand on the mouse or a hand held
+        // diagonally gives a line that does not fit); they never change the angle.
+        const F32 yaw = atan2f(-(r.z - l.z), r.x - l.x);
         if (palms[0].orientationValid && palms[1].orientationValid)
         {
             Vec3 f = { 0.f, 0.f, 0.f };
@@ -386,14 +393,12 @@ namespace
             }
             if (f.x * f.x + f.z * f.z > 0.25f)
             {
-                const F32 yaw_fingers = yawFacing(f);
-                const F32 diff = angleDiff(yaw_fingers, yaw);
+                const F32 diff = angleDiff(yawFacing(f), yaw);
                 if (fabsf(diff) > HANDS_MAX_TURN)
                 {
                     logRejected(llformat("fingers point %.0f deg away from the line between the hands", diff * RAD_TO_DEG).c_str());
                     return false;
                 }
-                yaw += 0.5f * diff;
             }
         }
         const Vec3 az = axisZ(yaw);
@@ -457,6 +462,10 @@ namespace
             logRejected("hands resting away from the keyboard window (Ctrl+Shift+Backspace measures again)");
             return;
         }
+        if (dh < FOLLOW_DEAD_DIST && dy < FOLLOW_DEAD_DIST && fabsf(dyaw) < FOLLOW_DEAD_YAW)
+        {
+            return; // already where the hands are: leave the window still
+        }
         sBase.c = { sBase.c.x + (est.c.x - sBase.c.x) * FOLLOW_WEIGHT, sBase.c.y + (est.c.y - sBase.c.y) * FOLLOW_WEIGHT,
                     sBase.c.z + (est.c.z - sBase.c.z) * FOLLOW_WEIGHT };
         sBase.yaw += dyaw * FOLLOW_WEIGHT;
@@ -483,6 +492,13 @@ void PATXRKeyboard::update(F32 dt, const XrPosef& left_eye, const XrPosef& right
         {
             placeFromHead(head, fwd);
         }
+    }
+    if (sMeasureRequested.exchange(false))
+    {
+        LL_INFOS("PATXR") << "Keyboard window: measuring again (preferences)" << LL_ENDL;
+        placeFromHead(head, fwd);
+        sDirty = true;
+        save(true);
     }
     followHands(dt, palms, head);
 
@@ -570,9 +586,16 @@ void PATXRKeyboard::update(F32 dt, const XrPosef& left_eye, const XrPosef& right
     }
 }
 
+void PATXRKeyboard::requestMeasure()
+{
+    sMeasureRequested = true;
+}
+
 void PATXRKeyboard::draw(const XrView& view, const PATXRPalm palms[2])
 {
-    if (!sPlaced || !initGL())
+    static LLCachedControl<bool> show_keyboard(gSavedSettings, "PATVRKeyboardWindow", true);
+    static LLCachedControl<bool> show_hands(gSavedSettings, "PATVRHandWindows", true);
+    if (!sPlaced || (!show_keyboard && !show_hands) || !initGL())
     {
         return;
     }
@@ -594,10 +617,13 @@ void PATXRKeyboard::draw(const XrView& view, const PATXRPalm palms[2])
     glBindBuffer(GL_ARRAY_BUFFER, sVBO);
 
     // White frame, then the transparent window inside it.
-    drawRect(view, sShown.c, sShown.yaw, sShown.w + 2 * FRAME, sShown.d + 2 * FRAME, 1.f, 1.f, 1.f, 1.f);
-    drawRect(view, sShown.c, sShown.yaw, sShown.w, sShown.d, 0.f, 0.f, 0.f, 0.f);
+    if (show_keyboard)
+    {
+        drawRect(view, sShown.c, sShown.yaw, sShown.w + 2 * FRAME, sShown.d + 2 * FRAME, 1.f, 1.f, 1.f, 1.f);
+        drawRect(view, sShown.c, sShown.yaw, sShown.w, sShown.d, 0.f, 0.f, 0.f, 0.f);
+    }
     // Hands near desk height get their own window (unchanged from the first test).
-    for (U32 i = 0; i < 2; ++i)
+    for (U32 i = 0; show_hands && i < 2; ++i)
     {
         if (palms[i].valid && palms[i].pos.y < sShown.c.y + 0.25f)
         {

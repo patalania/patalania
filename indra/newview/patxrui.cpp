@@ -640,6 +640,17 @@ namespace
         return d - F_PI;
     }
 
+    // Settings the panel placement depends on, as used for the last placement.
+    F32 sLayoutDist = 0.f, sLayoutDrop = 0.f, sLayoutWidth = 0.f;
+
+    bool layoutChanged()
+    {
+        static LLCachedControl<F32> width(gSavedSettings, "PATVRUIWidth", 2.3f);
+        const F32 w = llclamp((F32)width, MIN_WIDTH, MAX_WIDTH);
+        return !sResized && (fabsf(distance() - sLayoutDist) > 0.001f || fabsf(dropBelowEyes() - sLayoutDrop) > 0.001f ||
+                             fabsf(w - sLayoutWidth) > 0.001f);
+    }
+
     // Panel in direction 'yaw' from 'eye': a bit below eye height, turned so
     // that it faces the eyes. Room mode: placed once (fixed in the real room,
     // never moved by the avatar or the SL camera); follow mode: every frame.
@@ -651,6 +662,9 @@ namespace
             sW = llclamp((F32)width, MIN_WIDTH, MAX_WIDTH);
         }
         updateHeight();
+        sLayoutDist = distance();
+        sLayoutDrop = dropBelowEyes();
+        sLayoutWidth = sW;
         sPanelYaw = yaw;
         const XrVector3f fwd = v3(-sinf(yaw), 0.f, -cosf(yaw));
         sC = add(add(eye, mul(fwd, distance())), v3(0.f, -dropBelowEyes(), 0.f));
@@ -672,6 +686,9 @@ namespace
             sW = llclamp((F32)width, MIN_WIDTH, MAX_WIDTH);
         }
         updateHeight();
+        sLayoutDist = distance();
+        sLayoutDrop = dropBelowEyes();
+        sLayoutWidth = sW;
         const XrQuaternionf& q = left_eye.orientation;
         sR = rotate(q, v3(1.f, 0.f, 0.f));
         sU = rotate(q, v3(0.f, 1.f, 0.f));
@@ -770,6 +787,7 @@ namespace
         {
             sResized = false;
             gSavedSettings.setF32("PATVRUIWidth", sW);
+            sLayoutWidth = sW;
             logPanel("Resized");
         }
     }
@@ -960,6 +978,13 @@ void PATXRUI::update(F32 dt, const XrPosef& left_eye, const XrPosef& right_eye)
     else if (!sPlaced || sRecentre)
     {
         place(left_eye);
+    }
+    else if (m == MODE_ROOM && layoutChanged())
+    {
+        // Distance / height / width changed on the preferences page: move the
+        // panel along its direction, without touching the world's "straight ahead".
+        placeAt(sEye, sPanelYaw);
+        logPanel("Re-placed (settings)");
     }
     else if (m == MODE_FOLLOW)
     {

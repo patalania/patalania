@@ -384,7 +384,7 @@ bool PATXRStereo::init(S32 width, S32 height)
     // Own body visible when looking down in mouselook (Firestorm's "show avatar in
     // mouselook"); only the runtime flag, the user's setting stays untouched.
     // The full first-person mode follows in phase 9.
-    LLVOAvatar::sVisibleInFirstPerson = true;
+    LLVOAvatar::sVisibleInFirstPerson = gSavedSettings.getBOOL("PATVRBodyInMouselook");
     if (isAgentAvatarValid())
     {
         // Attachment visibility (mesh bodies!) is only recomputed on a camera
@@ -412,6 +412,18 @@ bool PATXRStereo::beginEyes(const XrView views[2])
     if (!sInitialised || sInEyes || gSnapshot || gCubeSnapshot || !gViewerWindow)
     {
         return false;
+    }
+    {
+        // Preferences page: own body in mouselook on/off while VR runs.
+        static LLCachedControl<bool> body(gSavedSettings, "PATVRBodyInMouselook", true);
+        if (LLVOAvatar::sVisibleInFirstPerson != (bool)body)
+        {
+            LLVOAvatar::sVisibleInFirstPerson = body;
+            if (isAgentAvatarValid())
+            {
+                gAgentAvatarp->updateAttachmentVisibility(gAgentCamera.getCameraMode());
+            }
+        }
     }
     LLViewerCamera& cam = LLViewerCamera::instance();
     // The pointer camera must have been restored in idle();

@@ -39,7 +39,7 @@
 // of the head (or where it was calibrated last time, if that fits the current
 // head position). When both hands rest ~1 s at a similar height on the
 // keyboard, the window moves onto them: centre, height, direction (line between
-// the hands, checked against the direction of the fingers; a hand on the mouse
+// the hands; the direction of the fingers only checks it, a hand on the mouse
 // is ignored) and width. Later resting periods near the window let it follow
 // softly. Manual adjustments (shortcuts below) stay on top of that.
 //
@@ -56,6 +56,9 @@ namespace PATXRKeyboard
     // white frame + transparent keyboard window, plus a transparent square
     // around each tracked palm that is near desk height.
     void draw(const XrView& view, const PATXRPalm palms[2]);
+
+    // Measure the window again (like Ctrl+Shift+Backspace); thread safe, acts on the next update().
+    void requestMeasure();
 
     // Release GL objects and forget the placement (GL context current).
     void release();

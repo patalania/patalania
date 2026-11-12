@@ -1,0 +1,843 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<!-- <PAT:XR> Patalania VR settings page (generated shape: see doc/building_patalania.md) -->
+<panel
+ border="true"
+ follows="all"
+ height="480"
+ layout="topleft"
+ left="1"
+ top="1"
+ width="540"
+ label="VR"
+ name="vr_panel">
+<tab_container
+ label="VR"
+ layout="topleft"
+ follows="all"
+ top="5"
+ bottom="-1"
+ left="1"
+ right="-1"
+ name="tabs"
+ tab_min_width="50"
+ tab_position="top">
+<panel
+ border="false"
+ follows="all"
+ layout="topleft"
+ left="1"
+ right="-1"
+ top_pad="5"
+ bottom="-1"
+ label="General"
+ name="vr_general">
+ <check_box
+  control_name="PATVREnabled"
+  follows="left|top"
+  height="16"
+  initial_value="false"
+  label="VR mode on (Ctrl+Shift+V)"
+  layout="topleft"
+  left="12"
+  top="8"
+  width="500"
+  tool_tip="Switch the VR mode on or off. It always starts off when the viewer starts."
+  name="vr_enabled" />
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="32"
+  height="62"
+  width="500"
+  word_wrap="true"
+  name="vr_note">
+VR needs a running VR runtime (WiVRn server) and a connected headset. Without them the viewer stays on the desktop and shows a note. If the headset is lost during VR, the viewer returns to the desktop by itself. Settings on these pages act at once, unless noted.
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="100"
+  height="16"
+  width="500"
+  font="SansSerifBold"
+  name="hd_cam">
+Camera
+ </text>
+ <check_box
+  control_name="PATVRFocusPitch"
+  follows="left|top"
+  height="16"
+  initial_value="true"
+  label="Tilt the view with the focus camera (Alt+click, Alt+E/C)"
+  layout="topleft"
+  left="12"
+  top="122"
+  width="500"
+  tool_tip="When the camera looks at an object (not at your avatar), the VR view takes over the up/down angle. Without it the horizon stays level."
+  name="vr_focus_pitch" />
+ <slider
+  can_edit_text="true"
+  control_name="PATVRPitchBlendTime"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.05"
+  initial_value="0.3"
+  label="Fade time into/out of the tilt (s)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="146"
+  max_val="2.0"
+  min_val="0.0"
+  show_text="true"
+  width="478"
+  tool_tip="Only used when the focus camera mode starts or ends; the tilt itself follows without any delay."
+  name="vr_blend" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Reset to the default value."
+  name="def_vr_blend">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRPitchBlendTime" />
+ </button>
+ <check_box
+  control_name="PATVRMouselookMousePitch"
+  follows="left|top"
+  height="16"
+  initial_value="false"
+  label="Mouse tilts the view in mouselook"
+  layout="topleft"
+  left="12"
+  top="170"
+  width="500"
+  tool_tip="In mouselook the mouse also tilts the view up and down. Off: only your head looks up and down."
+  name="vr_ml_pitch" />
+ <slider
+  can_edit_text="true"
+  control_name="PATVRPitchSmoothing"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.05"
+  initial_value="0.25"
+  label="Mouse tilt smoothing (s)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="194"
+  max_val="1.0"
+  min_val="0.0"
+  show_text="true"
+  width="478"
+  name="vr_ml_smooth" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Reset to the default value."
+  name="def_vr_ml_smooth">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRPitchSmoothing" />
+ </button>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="218"
+  height="16"
+  width="500"
+  font="SansSerifBold"
+  name="hd_ml">
+Mouselook (M)
+ </text>
+ <check_box
+  control_name="PATVRBodyInMouselook"
+  follows="left|top"
+  height="16"
+  initial_value="true"
+  label="Show my body in mouselook"
+  layout="topleft"
+  left="12"
+  top="240"
+  width="500"
+  tool_tip="Own body and attachments below the neck are visible when you look down."
+  name="vr_body" />
+ <slider
+  can_edit_text="true"
+  control_name="PATVRFirstPersonForwardOffset"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.01"
+  initial_value="0.05"
+  label="Eyes forward / back (m)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="264"
+  max_val="0.25"
+  min_val="-0.15"
+  show_text="true"
+  width="478"
+  tool_tip="Moves the eyes forward (+) or back (-) in the direction the body faces."
+  name="vr_fwd" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Reset to the default value."
+  name="def_vr_fwd">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRFirstPersonForwardOffset" />
+ </button>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRFirstPersonUpOffset"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.01"
+  initial_value="0.04"
+  label="Eyes up / down (m)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="288"
+  max_val="0.15"
+  min_val="-0.15"
+  show_text="true"
+  width="478"
+  name="vr_up" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Reset to the default value."
+  name="def_vr_up">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRFirstPersonUpOffset" />
+ </button>
+</panel>
+<panel
+ border="false"
+ follows="all"
+ layout="topleft"
+ left="1"
+ right="-1"
+ top_pad="5"
+ bottom="-1"
+ label="Panel"
+ name="vr_ui">
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="8"
+  height="34"
+  width="500"
+  word_wrap="true"
+  name="ui_note">
+The user interface is shown on a panel in the room, like a virtual monitor. Distance, height and width act at once.
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="48"
+  height="16"
+  width="500"
+  font="SansSerifBold"
+  name="hd_mode">
+Where the panel is
+ </text>
+ <radio_group
+  control_name="PATVRUIMode"
+  follows="left|top"
+  height="64"
+  layout="topleft"
+  left="12"
+  top="70"
+  width="500"
+  name="vr_ui_mode">
+  <radio_item
+   height="18"
+   label="Fixed in the room (default)"
+   layout="topleft"
+   left="0"
+   top="0"
+   width="480"
+   value="0"
+   name="vr_ui_mode_0" />
+  <radio_item
+   height="18"
+   label="Fixed to the head"
+   layout="topleft"
+   left="0"
+   top="20"
+   width="480"
+   value="1"
+   name="vr_ui_mode_1" />
+  <radio_item
+   height="18"
+   label="Follows the gaze with a delay"
+   layout="topleft"
+   left="0"
+   top="40"
+   width="480"
+   value="2"
+   name="vr_ui_mode_2" />
+ </radio_group>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRUIWidth"
+  decimal_digits="1"
+  follows="left|top"
+  height="16"
+  increment="0.1"
+  initial_value="2.3"
+  label="Panel width (m)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="140"
+  max_val="5.0"
+  min_val="0.6"
+  show_text="true"
+  width="478"
+  name="vr_ui_width" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Reset to the default value."
+  name="def_vr_ui_width">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRUIWidth" />
+ </button>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRUIDistance"
+  decimal_digits="1"
+  follows="left|top"
+  height="16"
+  increment="0.1"
+  initial_value="1.2"
+  label="Distance (m)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="164"
+  max_val="4.0"
+  min_val="0.4"
+  show_text="true"
+  width="478"
+  name="vr_ui_dist" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Reset to the default value."
+  name="def_vr_ui_dist">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRUIDistance" />
+ </button>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRUIDrop"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.05"
+  initial_value="0.1"
+  label="Below eye level (m)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="188"
+  max_val="0.8"
+  min_val="-0.5"
+  show_text="true"
+  width="478"
+  name="vr_ui_drop" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Reset to the default value."
+  name="def_vr_ui_drop">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRUIDrop" />
+ </button>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRUIScale"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.05"
+  initial_value="1.75"
+  label="Size of text and buttons"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="212"
+  max_val="3.0"
+  min_val="0.75"
+  show_text="true"
+  width="478"
+  tool_tip="Larger = fewer, bigger controls on the panel."
+  name="vr_ui_scale" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Reset to the default value."
+  name="def_vr_ui_scale">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRUIScale" />
+ </button>
+ <button
+  follows="left|top"
+  height="23"
+  label="Put the panel in front of my view now"
+  layout="topleft"
+  left="12"
+  top="236"
+  width="260"
+  name="vr_centre">
+  <button.commit_callback
+   function="PAT.VR.CentreUI" />
+ </button>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="266"
+  height="16"
+  width="500"
+  font="SansSerifBold"
+  name="hd_ptr">
+Mouse pointer
+ </text>
+ <check_box
+  control_name="PATVRConfineMouse"
+  follows="left|top"
+  height="16"
+  initial_value="true"
+  label="Own pointer that also moves beyond the panel into the world"
+  layout="topleft"
+  left="12"
+  top="288"
+  width="500"
+  name="vr_ptr_own" />
+ <slider
+  can_edit_text="true"
+  control_name="PATVRPointerReach"
+  decimal_digits="1"
+  follows="left|top"
+  height="16"
+  increment="0.1"
+  initial_value="1.0"
+  label="Reach beyond the panel"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="312"
+  max_val="3.0"
+  min_val="0.0"
+  show_text="true"
+  width="478"
+  tool_tip="In panel widths on each side. Clicks beyond the panel reach the world."
+  name="vr_ptr_reach" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Reset to the default value."
+  name="def_vr_ptr_reach">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRPointerReach" />
+ </button>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRCursorScale"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.05"
+  initial_value="1.0"
+  label="Pointer size"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="336"
+  max_val="4.0"
+  min_val="0.25"
+  show_text="true"
+  width="478"
+  name="vr_ptr_size" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Reset to the default value."
+  name="def_vr_ptr_size">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRCursorScale" />
+ </button>
+ <check_box
+  control_name="PATVRUIQuadLayer"
+  follows="left|top"
+  height="16"
+  initial_value="true"
+  label="Panel as separate layer (sharper). Takes effect at the next VR start."
+  layout="topleft"
+  left="12"
+  top="360"
+  width="500"
+  name="vr_quad" />
+</panel>
+<panel
+ border="false"
+ follows="all"
+ layout="topleft"
+ left="1"
+ right="-1"
+ top_pad="5"
+ bottom="-1"
+ label="World"
+ name="vr_world">
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="8"
+  height="16"
+  width="500"
+  font="SansSerifBold"
+  name="hd_tags">
+Name tags
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="30"
+  height="34"
+  width="500"
+  word_wrap="true"
+  name="tag_note">
+Name tags keep their full size up to the full-size distance; farther away they shrink down to the minimum size.
+ </text>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRNameTagFullSizeDistance"
+  decimal_digits="1"
+  follows="left|top"
+  height="16"
+  increment="0.5"
+  initial_value="4.0"
+  label="Full-size distance (m)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="70"
+  max_val="20.0"
+  min_val="1.0"
+  show_text="true"
+  width="478"
+  name="vr_tag_dist" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Reset to the default value."
+  name="def_vr_tag_dist">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRNameTagFullSizeDistance" />
+ </button>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRNameTagMinScale"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.05"
+  initial_value="0.35"
+  label="Minimum size"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="94"
+  max_val="1.0"
+  min_val="0.1"
+  show_text="true"
+  width="478"
+  name="vr_tag_min" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Reset to the default value."
+  name="def_vr_tag_min">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRNameTagMinScale" />
+ </button>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="118"
+  height="16"
+  width="500"
+  font="SansSerifBold"
+  name="hd_perf">
+Image quality (takes effect at the next VR start)
+ </text>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRResolutionScale"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.05"
+  initial_value="0.8"
+  label="Resolution (share of the headset default)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="140"
+  max_val="1.2"
+  min_val="0.5"
+  show_text="true"
+  width="478"
+  tool_tip="Lower = faster, higher = sharper."
+  name="vr_res" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Reset to the default value."
+  name="def_vr_res">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRResolutionScale" />
+ </button>
+ <check_box
+  control_name="PATVRHalfRate"
+  follows="left|top"
+  height="16"
+  initial_value="false"
+  label="Half frame rate: only if the computer cannot keep up"
+  layout="topleft"
+  left="12"
+  top="164"
+  width="500"
+  tool_tip="Every second headset frame repeats the last image; the headset smooths the motion."
+  name="vr_half" />
+</panel>
+<panel
+ border="false"
+ follows="all"
+ layout="topleft"
+ left="1"
+ right="-1"
+ top_pad="5"
+ bottom="-1"
+ label="Keyboard &amp; hands"
+ name="vr_kbd">
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="8"
+  height="62"
+  width="500"
+  word_wrap="true"
+  name="kbd_note">
+To type in VR you can see the real keyboard through the headset. A window in the picture shows the camera view of the keyboard, and around each hand near the desk. Rest both hands on the keyboard for a second to measure it; the window then stays there and follows slowly if you move.
+ </text>
+ <check_box
+  control_name="PATVRKeyboardWindow"
+  follows="left|top"
+  height="16"
+  initial_value="true"
+  label="Show the keyboard window"
+  layout="topleft"
+  left="12"
+  top="76"
+  width="500"
+  name="vr_kbd_win" />
+ <check_box
+  control_name="PATVRHandWindows"
+  follows="left|top"
+  height="16"
+  initial_value="true"
+  label="Show windows around the hands near the desk"
+  layout="topleft"
+  left="12"
+  top="100"
+  width="500"
+  name="vr_hand_win" />
+ <button
+  follows="left|top"
+  height="23"
+  label="Measure the keyboard again"
+  layout="topleft"
+  left="12"
+  top="124"
+  width="240"
+  name="vr_measure">
+  <button.commit_callback
+   function="PAT.VR.MeasureKeyboard" />
+ </button>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="154"
+  height="130"
+  width="500"
+  word_wrap="true"
+  name="kbd_keys">
+Fine adjustment, hold Ctrl+Shift:
+Arrow keys: move left/right and away/closer
+Page up / Page down: higher / lower
+Home / End: turn left / right
+Insert / Delete: wider / narrower
+Alt + Page up / Page down: deeper / shallower
+Backspace: measure again
+ </text>
+</panel>
+<panel
+ border="false"
+ follows="all"
+ layout="topleft"
+ left="1"
+ right="-1"
+ top_pad="5"
+ bottom="-1"
+ label="Shortcuts"
+ name="vr_keys">
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="8"
+  height="330"
+  width="500"
+  word_wrap="true"
+  name="keys_text">
+Ctrl+Shift+V
+    VR mode on / off (also while a text field has focus)
+Hold Escape (1.5 seconds)
+    leave VR mode
+Ctrl+Shift+Space, short
+    hide / show the whole interface (HUDs included; the pointer stays)
+Ctrl+Shift+Space, hold
+    put the panel in front of your view; this also sets the world's "straight ahead" for Alt focus
+Ctrl+Shift+Alt+Home / End
+    panel bigger / smaller
+Ctrl+Shift+Arrows, Page up/down, Home/End, Insert/Delete, Alt+Page up/down, Backspace
+    keyboard window: move, height, turn, width, depth, measure again
+M
+    mouselook (as on the desktop)
+Alt + click
+    focus camera (as on the desktop)
+ </text>
+</panel>
+</tab_container>
+</panel>

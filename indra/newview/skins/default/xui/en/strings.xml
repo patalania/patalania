@@ -3385,4 +3385,12 @@ Your current position: [AVATAR_POS]
 
   <!-- <FS:TJ> Launch new instance option from macOS dock> -->
   <string name="FSMacOSNewViewerInstance">New Viewer Instance</string>
+
+  <!-- <PAT:XR> VR mode: reasons shown in the notifications -->
+  <string name="PatVRReasonNoRuntime">No VR runtime was found or it did not answer. Start the WiVRn server and try again.</string>
+  <string name="PatVRReasonNoHeadset">No headset is connected. Connect the headset to the WiVRn server and try again.</string>
+  <string name="PatVRReasonLost">The connection to the headset or to the VR runtime was lost.</string>
+  <string name="PatVRReasonGeneric">The VR runtime reported an error.</string>
+  <string name="PatVRReasonDetails">Details: </string>
+  <!-- </PAT:XR> -->
 </strings>

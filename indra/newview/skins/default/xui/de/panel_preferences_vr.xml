@@ -1,0 +1,843 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<!-- <PAT:XR> Patalania VR settings page (generated shape: see doc/building_patalania.md) -->
+<panel
+ border="true"
+ follows="all"
+ height="480"
+ layout="topleft"
+ left="1"
+ top="1"
+ width="540"
+ label="VR"
+ name="vr_panel">
+<tab_container
+ label="VR"
+ layout="topleft"
+ follows="all"
+ top="5"
+ bottom="-1"
+ left="1"
+ right="-1"
+ name="tabs"
+ tab_min_width="50"
+ tab_position="top">
+<panel
+ border="false"
+ follows="all"
+ layout="topleft"
+ left="1"
+ right="-1"
+ top_pad="5"
+ bottom="-1"
+ label="Allgemein"
+ name="vr_general">
+ <check_box
+  control_name="PATVREnabled"
+  follows="left|top"
+  height="16"
+  initial_value="false"
+  label="VR-Modus an (Strg+Umschalt+V)"
+  layout="topleft"
+  left="12"
+  top="8"
+  width="500"
+  tool_tip="VR-Modus ein- oder ausschalten. Beim Start des Viewers ist er immer aus."
+  name="vr_enabled" />
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="32"
+  height="62"
+  width="500"
+  word_wrap="true"
+  name="vr_note">
+VR braucht eine laufende VR-Laufzeit (WiVRn-Server) und eine verbundene Brille. Ohne sie bleibt der Viewer am Monitor und zeigt einen Hinweis. Geht die Brille während VR verloren, kehrt der Viewer von selbst zum Monitor zurück. Einstellungen auf diesen Seiten wirken sofort, sofern nichts anderes dabeisteht.
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="100"
+  height="16"
+  width="500"
+  font="SansSerifBold"
+  name="hd_cam">
+Kamera
+ </text>
+ <check_box
+  control_name="PATVRFocusPitch"
+  follows="left|top"
+  height="16"
+  initial_value="true"
+  label="Blick mit der Fokus-Kamera neigen (Alt+Klick, Alt+E/C)"
+  layout="topleft"
+  left="12"
+  top="122"
+  width="500"
+  tool_tip="Schaut die Kamera auf ein Objekt (nicht auf den eigenen Avatar), übernimmt die VR-Ansicht den Winkel nach oben/unten. Aus: der Horizont bleibt waagerecht."
+  name="vr_focus_pitch" />
+ <slider
+  can_edit_text="true"
+  control_name="PATVRPitchBlendTime"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.05"
+  initial_value="0.3"
+  label="Überblendzeit der Neigung (s)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="146"
+  max_val="2.0"
+  min_val="0.0"
+  show_text="true"
+  width="478"
+  tool_tip="Gilt nur beim Beginn und Ende des Fokus-Kameramodus; die Neigung selbst folgt ohne Verzögerung."
+  name="vr_blend" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Auf den Standardwert zurücksetzen."
+  name="def_vr_blend">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRPitchBlendTime" />
+ </button>
+ <check_box
+  control_name="PATVRMouselookMousePitch"
+  follows="left|top"
+  height="16"
+  initial_value="false"
+  label="Maus neigt den Blick im Mouselook"
+  layout="topleft"
+  left="12"
+  top="170"
+  width="500"
+  tool_tip="Im Mouselook neigt auch die Maus den Blick nach oben/unten. Aus: nur der Kopf schaut nach oben/unten."
+  name="vr_ml_pitch" />
+ <slider
+  can_edit_text="true"
+  control_name="PATVRPitchSmoothing"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.05"
+  initial_value="0.25"
+  label="Glättung der Maus-Neigung (s)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="194"
+  max_val="1.0"
+  min_val="0.0"
+  show_text="true"
+  width="478"
+  name="vr_ml_smooth" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Auf den Standardwert zurücksetzen."
+  name="def_vr_ml_smooth">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRPitchSmoothing" />
+ </button>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="218"
+  height="16"
+  width="500"
+  font="SansSerifBold"
+  name="hd_ml">
+Mouselook (M)
+ </text>
+ <check_box
+  control_name="PATVRBodyInMouselook"
+  follows="left|top"
+  height="16"
+  initial_value="true"
+  label="Eigenen Körper im Mouselook zeigen"
+  layout="topleft"
+  left="12"
+  top="240"
+  width="500"
+  tool_tip="Eigener Körper und Anhänge unterhalb des Halses sind beim Blick nach unten sichtbar."
+  name="vr_body" />
+ <slider
+  can_edit_text="true"
+  control_name="PATVRFirstPersonForwardOffset"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.01"
+  initial_value="0.05"
+  label="Augen vor / zurück (m)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="264"
+  max_val="0.25"
+  min_val="-0.15"
+  show_text="true"
+  width="478"
+  tool_tip="Verschiebt die Augen nach vorn (+) oder hinten (-) in die Richtung, in die der Körper schaut."
+  name="vr_fwd" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Auf den Standardwert zurücksetzen."
+  name="def_vr_fwd">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRFirstPersonForwardOffset" />
+ </button>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRFirstPersonUpOffset"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.01"
+  initial_value="0.04"
+  label="Augen hoch / runter (m)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="288"
+  max_val="0.15"
+  min_val="-0.15"
+  show_text="true"
+  width="478"
+  name="vr_up" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Auf den Standardwert zurücksetzen."
+  name="def_vr_up">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRFirstPersonUpOffset" />
+ </button>
+</panel>
+<panel
+ border="false"
+ follows="all"
+ layout="topleft"
+ left="1"
+ right="-1"
+ top_pad="5"
+ bottom="-1"
+ label="Tafel"
+ name="vr_ui">
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="8"
+  height="34"
+  width="500"
+  word_wrap="true"
+  name="ui_note">
+Die Oberfläche erscheint auf einer Tafel im Raum, wie ein virtueller Monitor. Abstand, Höhe und Breite wirken sofort.
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="48"
+  height="16"
+  width="500"
+  font="SansSerifBold"
+  name="hd_mode">
+Wo die Tafel ist
+ </text>
+ <radio_group
+  control_name="PATVRUIMode"
+  follows="left|top"
+  height="64"
+  layout="topleft"
+  left="12"
+  top="70"
+  width="500"
+  name="vr_ui_mode">
+  <radio_item
+   height="18"
+   label="Fest im Raum (Standard)"
+   layout="topleft"
+   left="0"
+   top="0"
+   width="480"
+   value="0"
+   name="vr_ui_mode_0" />
+  <radio_item
+   height="18"
+   label="Fest am Kopf"
+   layout="topleft"
+   left="0"
+   top="20"
+   width="480"
+   value="1"
+   name="vr_ui_mode_1" />
+  <radio_item
+   height="18"
+   label="Folgt dem Blick mit Verzögerung"
+   layout="topleft"
+   left="0"
+   top="40"
+   width="480"
+   value="2"
+   name="vr_ui_mode_2" />
+ </radio_group>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRUIWidth"
+  decimal_digits="1"
+  follows="left|top"
+  height="16"
+  increment="0.1"
+  initial_value="2.3"
+  label="Breite der Tafel (m)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="140"
+  max_val="5.0"
+  min_val="0.6"
+  show_text="true"
+  width="478"
+  name="vr_ui_width" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Auf den Standardwert zurücksetzen."
+  name="def_vr_ui_width">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRUIWidth" />
+ </button>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRUIDistance"
+  decimal_digits="1"
+  follows="left|top"
+  height="16"
+  increment="0.1"
+  initial_value="1.2"
+  label="Abstand (m)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="164"
+  max_val="4.0"
+  min_val="0.4"
+  show_text="true"
+  width="478"
+  name="vr_ui_dist" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Auf den Standardwert zurücksetzen."
+  name="def_vr_ui_dist">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRUIDistance" />
+ </button>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRUIDrop"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.05"
+  initial_value="0.1"
+  label="Unter Augenhöhe (m)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="188"
+  max_val="0.8"
+  min_val="-0.5"
+  show_text="true"
+  width="478"
+  name="vr_ui_drop" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Auf den Standardwert zurücksetzen."
+  name="def_vr_ui_drop">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRUIDrop" />
+ </button>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRUIScale"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.05"
+  initial_value="1.75"
+  label="Größe von Text und Schaltflächen"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="212"
+  max_val="3.0"
+  min_val="0.75"
+  show_text="true"
+  width="478"
+  tool_tip="Größer = weniger, dafür größere Bedienelemente auf der Tafel."
+  name="vr_ui_scale" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Auf den Standardwert zurücksetzen."
+  name="def_vr_ui_scale">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRUIScale" />
+ </button>
+ <button
+  follows="left|top"
+  height="23"
+  label="Tafel jetzt vor meinen Blick setzen"
+  layout="topleft"
+  left="12"
+  top="236"
+  width="260"
+  name="vr_centre">
+  <button.commit_callback
+   function="PAT.VR.CentreUI" />
+ </button>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="266"
+  height="16"
+  width="500"
+  font="SansSerifBold"
+  name="hd_ptr">
+Mauszeiger
+ </text>
+ <check_box
+  control_name="PATVRConfineMouse"
+  follows="left|top"
+  height="16"
+  initial_value="true"
+  label="Eigener Zeiger, der auch über die Tafel hinaus in die Welt wandert"
+  layout="topleft"
+  left="12"
+  top="288"
+  width="500"
+  name="vr_ptr_own" />
+ <slider
+  can_edit_text="true"
+  control_name="PATVRPointerReach"
+  decimal_digits="1"
+  follows="left|top"
+  height="16"
+  increment="0.1"
+  initial_value="1.0"
+  label="Reichweite über die Tafel hinaus"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="312"
+  max_val="3.0"
+  min_val="0.0"
+  show_text="true"
+  width="478"
+  tool_tip="In Tafelbreiten je Seite. Klicks außerhalb der Tafel erreichen die Welt."
+  name="vr_ptr_reach" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Auf den Standardwert zurücksetzen."
+  name="def_vr_ptr_reach">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRPointerReach" />
+ </button>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRCursorScale"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.05"
+  initial_value="1.0"
+  label="Zeigergröße"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="336"
+  max_val="4.0"
+  min_val="0.25"
+  show_text="true"
+  width="478"
+  name="vr_ptr_size" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Auf den Standardwert zurücksetzen."
+  name="def_vr_ptr_size">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRCursorScale" />
+ </button>
+ <check_box
+  control_name="PATVRUIQuadLayer"
+  follows="left|top"
+  height="16"
+  initial_value="true"
+  label="Tafel als eigene Ebene (schärfer). Wirkt beim nächsten VR-Start."
+  layout="topleft"
+  left="12"
+  top="360"
+  width="500"
+  name="vr_quad" />
+</panel>
+<panel
+ border="false"
+ follows="all"
+ layout="topleft"
+ left="1"
+ right="-1"
+ top_pad="5"
+ bottom="-1"
+ label="Welt"
+ name="vr_world">
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="8"
+  height="16"
+  width="500"
+  font="SansSerifBold"
+  name="hd_tags">
+Namensschilder
+ </text>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="30"
+  height="34"
+  width="500"
+  word_wrap="true"
+  name="tag_note">
+Namensschilder behalten bis zur Vollgröße-Distanz ihre volle Größe; weiter weg schrumpfen sie bis zur Mindestgröße.
+ </text>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRNameTagFullSizeDistance"
+  decimal_digits="1"
+  follows="left|top"
+  height="16"
+  increment="0.5"
+  initial_value="4.0"
+  label="Vollgröße-Distanz (m)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="70"
+  max_val="20.0"
+  min_val="1.0"
+  show_text="true"
+  width="478"
+  name="vr_tag_dist" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Auf den Standardwert zurücksetzen."
+  name="def_vr_tag_dist">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRNameTagFullSizeDistance" />
+ </button>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRNameTagMinScale"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.05"
+  initial_value="0.35"
+  label="Mindestgröße"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="94"
+  max_val="1.0"
+  min_val="0.1"
+  show_text="true"
+  width="478"
+  name="vr_tag_min" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Auf den Standardwert zurücksetzen."
+  name="def_vr_tag_min">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRNameTagMinScale" />
+ </button>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="118"
+  height="16"
+  width="500"
+  font="SansSerifBold"
+  name="hd_perf">
+Bildqualität (wirkt beim nächsten VR-Start)
+ </text>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRResolutionScale"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.05"
+  initial_value="0.8"
+  label="Auflösung (Anteil der Brillen-Vorgabe)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="140"
+  max_val="1.2"
+  min_val="0.5"
+  show_text="true"
+  width="478"
+  tool_tip="Niedriger = schneller, höher = schärfer."
+  name="vr_res" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Auf den Standardwert zurücksetzen."
+  name="def_vr_res">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRResolutionScale" />
+ </button>
+ <check_box
+  control_name="PATVRHalfRate"
+  follows="left|top"
+  height="16"
+  initial_value="false"
+  label="Halbe Bildrate: nur wenn der Rechner nicht mitkommt"
+  layout="topleft"
+  left="12"
+  top="164"
+  width="500"
+  tool_tip="Jedes zweite Brillenbild wiederholt das letzte Bild; die Brille glättet die Bewegung."
+  name="vr_half" />
+</panel>
+<panel
+ border="false"
+ follows="all"
+ layout="topleft"
+ left="1"
+ right="-1"
+ top_pad="5"
+ bottom="-1"
+ label="Tastatur &amp; Hände"
+ name="vr_kbd">
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="8"
+  height="62"
+  width="500"
+  word_wrap="true"
+  name="kbd_note">
+Zum Tippen in VR siehst du die echte Tastatur durch die Brille. Ein Fenster im Bild zeigt die Kamerasicht auf die Tastatur und um jede Hand in Schreibtischnähe. Zum Einmessen beide Hände eine Sekunde ruhig auf die Tastatur legen; das Fenster bleibt dann dort und folgt langsam, wenn du dich verschiebst.
+ </text>
+ <check_box
+  control_name="PATVRKeyboardWindow"
+  follows="left|top"
+  height="16"
+  initial_value="true"
+  label="Tastatur-Fenster zeigen"
+  layout="topleft"
+  left="12"
+  top="76"
+  width="500"
+  name="vr_kbd_win" />
+ <check_box
+  control_name="PATVRHandWindows"
+  follows="left|top"
+  height="16"
+  initial_value="true"
+  label="Fenster um die Hände in Schreibtischnähe zeigen"
+  layout="topleft"
+  left="12"
+  top="100"
+  width="500"
+  name="vr_hand_win" />
+ <button
+  follows="left|top"
+  height="23"
+  label="Tastatur neu einmessen"
+  layout="topleft"
+  left="12"
+  top="124"
+  width="240"
+  name="vr_measure">
+  <button.commit_callback
+   function="PAT.VR.MeasureKeyboard" />
+ </button>
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="154"
+  height="130"
+  width="500"
+  word_wrap="true"
+  name="kbd_keys">
+Feinjustage, Strg+Umschalt gedrückt halten:
+Pfeiltasten: nach links/rechts und weg/näher verschieben
+Bild auf / Bild ab: höher / tiefer
+Pos1 / Ende: nach links / rechts drehen
+Einfg / Entf: breiter / schmaler
+Alt + Bild auf / Bild ab: tiefer / flacher
+Rücktaste: neu einmessen
+ </text>
+</panel>
+<panel
+ border="false"
+ follows="all"
+ layout="topleft"
+ left="1"
+ right="-1"
+ top_pad="5"
+ bottom="-1"
+ label="Kürzel"
+ name="vr_keys">
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="8"
+  height="330"
+  width="500"
+  word_wrap="true"
+  name="keys_text">
+Strg+Umschalt+V
+    VR-Modus an / aus (auch wenn ein Textfeld den Fokus hat)
+Escape halten (1,5 Sekunden)
+    VR-Modus verlassen
+Strg+Umschalt+Leertaste, kurz
+    ganze Oberfläche ausblenden / einblenden (HUDs inklusive; der Zeiger bleibt)
+Strg+Umschalt+Leertaste, halten
+    Tafel vor den Blick setzen; setzt zugleich das „Geradeaus“ der Welt für den Alt-Fokus
+Strg+Umschalt+Alt+Pos1 / Ende
+    Tafel größer / kleiner
+Strg+Umschalt+Pfeile, Bild auf/ab, Pos1/Ende, Einfg/Entf, Alt+Bild auf/ab, Rücktaste
+    Tastatur-Fenster: verschieben, Höhe, drehen, Breite, Tiefe, neu einmessen
+M
+    Mouselook (wie am Monitor)
+Alt + Klick
+    Fokus-Kamera (wie am Monitor)
+ </text>
+</panel>
+</tab_container>
+</panel>
