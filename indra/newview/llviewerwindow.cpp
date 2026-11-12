@@ -1212,7 +1212,7 @@ bool LLViewerWindow::handleAnyMouseClick(LLWindow *window, LLCoordGL pos, MASK m
         }
 
         // Mark the click as handled and return if we aren't within the root view to avoid spurious bugs
-        if( !mRootView->pointInView(x, y) )
+        if( !mRootView->pointInView(x, y) && !PATXRSession::pointerBeyondWindow() ) // <PAT:XR/> VR: clicks beyond the panel go to the world
         {
             return true;
         }

@@ -32,6 +32,7 @@
 #if PAT_XR
 
 #include "patxrui.h"
+#include "patxrstereo.h"
 
 #include "llagentcamera.h"
 #include "lldir.h"
@@ -587,10 +588,10 @@ namespace
     {
         const F32 dist = sEyeValid ? dot(sub(sEye, sC), sN) : 0.f;
         LL_INFOS("PATXR") << what << llformat(" UI panel: centre x=%.2f y=%.2f z=%.2f m, %.2f x %.2f m, %.2f m from the eyes "
-                                               "(%.0f deg wide), texture %dx%d, UI scale %.2f",
+                                               "(%.0f deg wide), yaw %.0f deg, texture %dx%d, UI scale %.2f",
                                                sC.x, sC.y, sC.z, sW, sH, dist,
                                                dist > 0.01f ? 2.f * atanf(0.5f * sW / dist) * RAD_TO_DEG : 0.f,
-                                               sTexW, sTexH, PATXRUI::uiScale()) << LL_ENDL;
+                                               sPanelYaw * RAD_TO_DEG, sTexW, sTexH, PATXRUI::uiScale()) << LL_ENDL;
     }
 
     void updateHeight()
@@ -684,6 +685,10 @@ namespace
         placeAt(sEye, headYaw(left_eye));
         sRecentre = false;
         sFollowing = false;
+        // The world's "straight ahead" (viewer camera direction) is taken from
+        // the head at the same moment, so the panel centre and the camera
+        // direction (e.g. an Alt-click focus) agree.
+        PATXRStereo::resetReference();
         logPanel("Placed");
     }
 
