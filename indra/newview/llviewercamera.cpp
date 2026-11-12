@@ -28,6 +28,7 @@
 
 #define LLVIEWERCAMERA_CPP
 #include "llviewercamera.h"
+#include "patxrsession.h" // <PAT:XR/>
 
 // Viewer includes
 #include "llagent.h"
@@ -668,6 +669,7 @@ bool LLViewerCamera::projectPosAgentToScreenEdge(const LLVector3 &pos_agent,
 
 void LLViewerCamera::getPixelVectors(const LLVector3 &pos_agent, LLVector3 &up, LLVector3 &right)
 {
+    if (PATXRSession::pixelVectors(pos_agent, up, right)) return; // <PAT:XR/> VR: billboards face the head, stay upright
     LLVector3 to_vec = pos_agent - getOrigin();
 
     F32 at_dist = to_vec * getAtAxis();

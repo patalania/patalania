@@ -373,6 +373,17 @@ bool PATXRStereo::beginEyes(const XrView views[2])
 
     // Base = the viewer camera as Firestorm computed it this frame, yaw only.
     sBase.origin = cam.getOrigin();
+    LLVector3 eye_base = sBase.origin; // only for the eyes; the desktop camera is restored unchanged
+    // Mouselook with the body visible: Firestorm keeps the camera ~20 cm in
+    // front of the head (and shifts the body to match) so the desktop view does
+    // not clip into the head. In VR the eyes belong at the avatar's eyes,
+    // otherwise one has to bend far over to see the own body. Smoothing of
+    // animation bobbing and the full first-person mode follow in phase 9.
+    if (gAgentCamera.cameraMouselook() && isAgentAvatarValid() &&
+        gAgentAvatarp->mEyeLeftp && gAgentAvatarp->mEyeRightp)
+    {
+        eye_base = (gAgentAvatarp->mEyeLeftp->getWorldPosition() + gAgentAvatarp->mEyeRightp->getWorldPosition()) * 0.5f;
+    }
     sBase.at = cam.getAtAxis();
     sBase.left = cam.getLeftAxis();
     sBase.up = cam.getUpAxis();
@@ -399,7 +410,7 @@ bool PATXRStereo::beginEyes(const XrView views[2])
     {
         const XrPosef& pose = views[i].pose;
         const Vec3 rel = unyaw({ pose.position.x - sRefPos.x, pose.position.y - sRefPos.y, pose.position.z - sRefPos.z });
-        sEyeOrigin[i] = sBase.origin + toWorld(rel, fwd, left);
+        sEyeOrigin[i] = eye_base + toWorld(rel, fwd, left);
         sEyeAt[i] = toWorld(unyaw(rotate(pose.orientation, { 0.f, 0.f, -1.f })), fwd, left);
         sEyeLeft[i] = toWorld(unyaw(rotate(pose.orientation, { -1.f, 0.f, 0.f })), fwd, left);
         sEyeUp[i] = toWorld(unyaw(rotate(pose.orientation, { 0.f, 1.f, 0.f })), fwd, left);
@@ -492,6 +503,38 @@ void PATXRStereo::renderEyes(const XrView views[2], const PATXRPalm palms[2])
 bool PATXRStereo::inEyes()
 {
     return sInEyes;
+}
+
+bool PATXRStereo::pixelVectors(const LLVector3& pos_agent, LLVector3& up, LLVector3& right)
+{
+    if (!sInEyes)
+    {
+        return false;
+    }
+    // Face the head centre (not the eye, not the viewing direction): turning the
+    // head on the spot changes nothing, both eyes see the same plane.
+    const LLVector3 head = (sEyeOrigin[0] + sEyeOrigin[1]) * 0.5f;
+    const LLVector3 d = pos_agent - head;
+    LLVector3 flat(d.mV[VX], d.mV[VY], 0.f);
+    if (flat.normVec() < 0.01f)
+    {
+        flat = LLVector3(sEyeAt[0].mV[VX], sEyeAt[0].mV[VY], 0.f);
+        if (flat.normVec() < 0.01f)
+        {
+            flat = LLVector3::x_axis;
+        }
+    }
+    LLVector3 right_dir = flat % LLVector3::z_axis; // right as seen from the head
+    right_dir.normVec();
+
+    // Same pixel size rule as LLViewerCamera::getPixelVectors, with the distance
+    // to the head centre.
+    const LLViewerCamera& cam = LLViewerCamera::instance();
+    const F32 height_meters = d.magVec() * tanf(cam.getView() * 0.5f);
+    const F32 meters_per_pixel = height_meters / llmax(1.f, cam.getViewHeightInPixels() * 0.5f);
+    up = LLVector3::z_axis * meters_per_pixel * gViewerWindow->getDisplayScale().mV[VY];
+    right = right_dir * meters_per_pixel * gViewerWindow->getDisplayScale().mV[VX];
+    return true;
 }
 
 bool PATXRStereo::drawHudText(const LLWString& text, const LLVector3& pos_agent, const LLVector3& right_axis,

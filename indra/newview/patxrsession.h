@@ -63,6 +63,10 @@ public:
     // hud_render_text() (llhudrender.cpp): while an eye is drawn, the text is
     // drawn as an upright plane in the world instead of flat on the screen
     // (which would roll with the head). Returns false outside VR.
+    // LLViewerCamera::getPixelVectors(): while an eye is drawn, billboards (name
+    // tags, hover text) are upright and face the head centre, the same for both
+    // eyes. Returns false outside VR.
+    static bool pixelVectors(const LLVector3& pos_agent, LLVector3& up, LLVector3& right);
     static bool drawHudText(const LLWString& text, const LLVector3& pos_agent, const LLVector3& right_axis,
                             const LLVector3& up_axis, const LLFontGL& font, U8 style, S32 shadow, const LLColor4& color);
 };

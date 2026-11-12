@@ -73,6 +73,9 @@ namespace PATXRStereo
     // True while between beginEyes() and the end of renderEyes().
     bool inEyes();
 
+    // Billboard axes (see PATXRSession::pixelVectors).
+    bool pixelVectors(const LLVector3& pos_agent, LLVector3& up, LLVector3& right);
+
     // Floating text as an upright plane in the world (see PATXRSession::drawHudText).
     bool drawHudText(const LLWString& text, const LLVector3& pos_agent, const LLVector3& right_axis,
                      const LLVector3& up_axis, const LLFontGL& font, U8 style, S32 shadow, const LLColor4& color);
