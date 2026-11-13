@@ -130,8 +130,10 @@ jobs:
           ## VR features
 
           - Native VR view through OpenXR, tested with WiVRn and a Meta Quest 3
-          - Keyboard and mouse control in VR (no hand controllers needed)
-          - Passthrough hand window for chat, inventory and other floaters
+          - Keyboard and mouse control, no hand controllers needed
+          - Passthrough windows around your hands and keyboard, so you can see your real keyboard while wearing the headset
+          - The complete viewer UI (menus, chat, inventory, HUDs) on a virtual screen in front of you, usable with the mouse
+          - VR settings page (Preferences → VR)
           - Falls back to a normal desktop viewer if no OpenXR runtime or headset is found
 
           ## System requirements
