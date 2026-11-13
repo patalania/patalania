@@ -3,7 +3,7 @@
 SCRIPTSRC=`readlink -f "$0" || echo "$0"`
 RUN_PATH=`dirname "${SCRIPTSRC}" || echo .`
 
-install_prefix=${RUN_PATH}/..
+install_prefix=$(readlink -f "${RUN_PATH}/..") # <PAT:Installer/> absolute path for Exec=
 
 # <PAT:Rebrand> Install the icon into the hicolor theme (Icon=patalania)
 function install_icons()
@@ -46,18 +46,18 @@ function install_desktop_entry()
 [Desktop Entry]\n\
 Name=Patalania\n\
 Comment=Client for accessing 3D virtual worlds, with VR support\n\
-Exec=${installation_prefix}/patalania\n\
+Exec=\"${installation_prefix}/patalania\"\n\
 Icon=patalania\n\
 Terminal=false\n\
 Type=Application\n\
-Categories=Application;Internet;Network;\n\
+Categories=Network;\n\
 StartupNotify=true\n\
 X-Desktop-File-Install-Version=3.0\n\
 StartupWMClass=do-not-directly-run-patalania-bin"
 
     echo " - Installing menu entries in ${desktop_entries_dir}"
     mkdir -vp "${desktop_entries_dir}"
-    echo -e $desktop_entry > "${desktop_entries_dir}/patalania.desktop" || "Failed to install application menu!"
+    echo -e "$desktop_entry" > "${desktop_entries_dir}/patalania.desktop" || "Failed to install application menu!"
 }
 
 if [ "$UID" == "0" ]; then

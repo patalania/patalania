@@ -22,6 +22,12 @@ Patalania is a fork of the [Firestorm viewer](https://github.com/FirestormViewer
 - [Support](SUPPORT.md) – none; bug reports via GitHub issues are welcome
 - [Contributing](CONTRIBUTING.md)
 
+## Install (Linux)
+
+Download the `.tar.xz` from the Releases page, extract it, then run `./install.sh` in the extracted folder.
+As a normal user it installs to `~/.local/opt/patalania`, with sudo to `/opt/patalania`, and adds a "Patalania" entry to the start menu.
+You can also run `./patalania` directly from the extracted folder.
+
 ## Build
 
 Linux build notes: [doc/building_linux.md](doc/building_linux.md) (base) and [doc/building_patalania.md](doc/building_patalania.md).

@@ -13,7 +13,7 @@ fi
 
 RUN_PATH=`dirname "$0" || echo .`
 #cd "${RUN_PATH}/.."
-ch "${RUN_PATH}"
+cd "${RUN_PATH}" # <PAT:Installer/> fix typo: was "ch"
 
 #exec ./patalania -url \'"${URL}"\'
 if [ `pidof do-not-directly-run-patalania-bin` ]; then
@@ -21,5 +21,3 @@ if [ `pidof do-not-directly-run-patalania-bin` ]; then
 else
 	exec ../patalania -url \'"${URL}"\'
 fi
-`
-

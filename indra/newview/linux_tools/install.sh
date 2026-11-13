@@ -13,7 +13,7 @@ tarball_path="${RUN_PATH}"
 
 # Default installation directories
 DEFAULT_SYSTEM_INSTALL_DIR="/opt/patalania"
-DEFAULT_USER_INSTALL_DIR="$HOME/patalania"
+DEFAULT_USER_INSTALL_DIR="$HOME/.local/opt/patalania" # <PAT:Installer/>
 
 # Default number of retained backups
 DEFAULT_RETAIN_BACKUPS=5
@@ -150,7 +150,7 @@ root_install() {
     if [[ -n "$CUSTOM_INSTALL_DIR" ]]; then
         local install_prefix="$CUSTOM_INSTALL_DIR"
     elif [[ -n "$SUFFIX" ]]; then
-        local install_prefix="$default_prefix_$SUFFIX"
+        local install_prefix="${default_prefix}_${SUFFIX}" # <PAT:Installer/> fix: was "$default_prefix_"
     else
         local install_prefix="$default_prefix"
     fi

@@ -124,6 +124,8 @@ jobs:
 
           **No support.** This is a hobby project provided as is, without warranty and without any support.
 
+          **Install:** extract the archive, then run `./install.sh` inside the extracted folder (installs to `~/.local/opt/patalania` as a normal user, or `/opt/patalania` with sudo, and adds a "Patalania" start menu entry). You can also run `./patalania` directly from the extracted folder.
+
           - [PRIVACY.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/PRIVACY.md)
           - [SUPPORT.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/SUPPORT.md)
           - [Known limitations](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/docs/KNOWN_LIMITATIONS.md)
