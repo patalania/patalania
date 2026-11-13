@@ -1,8 +1,8 @@
 # Patalania
 
-**Patalania** is a third-party viewer for 3D virtual worlds such as Second Life and OpenSim grids. Its goal is a native OpenXR VR view (currently tested with WiVRn on Linux, e.g. Meta Quest 3) that is controlled with keyboard and mouse.
+**Patalania** is a third-party viewer for 3D virtual worlds such as Second Life and OpenSim grids. It adds a native OpenXR VR view (tested with WiVRn on Linux and a Meta Quest 3) that is controlled with keyboard and mouse.
 
-> **Status: in development.** There are no releases yet. The VR view is not implemented yet; for now Patalania behaves like its base.
+> **Latest release:** [Patalania 7.2.5.81837](https://github.com/patalania/patalania/releases/latest) for Linux x86_64, based on Firestorm 7.2.5. Download it from the [releases page](https://github.com/patalania/patalania/releases).
 
 ## Disclaimer
 
