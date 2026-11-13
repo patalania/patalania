@@ -1,0 +1,135 @@
+name: Build Patalania Linux
+
+# Nur manuell oder per Versions-Tag (v*). Kein Build bei normalen Pushes.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  AUTOBUILD_VARIABLES_FILE: ${{ github.workspace }}/build-variables/variables
+  CC: gcc-14
+  CXX: g++-14
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Patalania (full history for build number)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout build variables
+        uses: actions/checkout@v4
+        with:
+          repository: FirestormViewer/fs-build-variables
+          path: build-variables
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python requirements
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt ninja
+
+      - name: Install Ubuntu build dependencies
+        run: |
+          sudo apt-get -o Acquire::Retries=3 update
+          sudo apt-get -o Acquire::Retries=3 install -y \
+            gcc-14 g++-14 cmake libssl-dev \
+            build-essential python3-setuptools \
+            mesa-common-dev libgl1-mesa-dev libglu1-mesa-dev \
+            libxinerama-dev libxrandr-dev libpulse-dev \
+            libfreetype6-dev libfontconfig1-dev \
+            wget apt-transport-https software-properties-common
+
+      - name: Install PowerShell (required by autobuild)
+        run: |
+          wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb" \
+            -O packages-microsoft-prod.deb
+          sudo dpkg -i packages-microsoft-prod.deb
+          rm packages-microsoft-prod.deb
+          sudo apt-get update
+          sudo apt-get install -y powershell
+
+      - name: Compute version
+        id: version
+        run: |
+          base="$(tr -d '[:space:]' < indra/newview/VIEWER_VERSION_FS.txt)"
+          build="$(git rev-list --count HEAD)"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+          echo "full=$base.$build" >> "$GITHUB_OUTPUT"
+          # CMake (BuildVersion.cmake) uses env 'revision' as fourth number,
+          # no autobuild timestamp.
+          echo "revision=$build" >> "$GITHUB_ENV"
+          echo "Patalania version: $base.$build"
+
+      - name: Configure
+        run: |
+          autobuild configure -A 64 -c ReleaseOS -- \
+            -DVIEWER_CHANNEL:STRING=Patalania-Release \
+            -DVIEWER_BINARY_NAME:STRING=patalania-bin \
+            -DROOT_PROJECT_NAME:STRING=Patalania \
+            -DLL_TESTS:BOOL=FALSE \
+            -DUSE_FMODSTUDIO:BOOL=OFF \
+            -DUSE_KDU:BOOL=OFF \
+            -DOPENSIM:BOOL=ON \
+            -DHAVOK_TPV:BOOL=OFF \
+            -DPATALANIA_XR:BOOL=ON
+
+      - name: Build
+        run: autobuild build -A 64 -c ReleaseOS --no-configure
+
+      - name: Collect package
+        id: pkg
+        run: |
+          ls -la build-linux-*/newview/*.tar.xz
+          mkdir -p out
+          cp build-linux-*/newview/*.tar.xz out/
+          ls -la out
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Patalania-linux-${{ steps.version.outputs.full }}
+          path: out/*.tar.xz
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Create draft release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.full }}
+          BASE: ${{ steps.version.outputs.base }}
+        run: |
+          cat > release-notes.md <<NOTES
+          **Patalania ${VERSION}** (Linux, x86_64) – based on Firestorm ${BASE}.
+
+          Patalania is an independent third-party viewer. It is not affiliated with, endorsed by or sponsored by Linden Research, nor by The Phoenix Firestorm Project, Inc. Second Life is a trademark of Linden Research, Inc.
+
+          **No support.** This is a hobby project provided as is, without warranty and without any support.
+
+          - [PRIVACY.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/PRIVACY.md)
+          - [SUPPORT.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/SUPPORT.md)
+          - [Known limitations](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/docs/KNOWN_LIMITATIONS.md)
+          NOTES
+          sed -i 's/^          //' release-notes.md
+          gh release create "$GITHUB_REF_NAME" out/*.tar.xz \
+            --draft \
+            --title "Patalania ${VERSION}" \
+            --notes-file release-notes.md
