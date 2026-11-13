@@ -117,20 +117,46 @@ jobs:
           VERSION: ${{ steps.version.outputs.full }}
           BASE: ${{ steps.version.outputs.base }}
         run: |
-          cat > release-notes.md <<NOTES
-          **Patalania ${VERSION}** (Linux, x86_64) – based on Firestorm ${BASE}.
+          # <PAT:Release> Quoted heredoc: backticks stay literal; placeholders are replaced below.
+          cat > release-notes.md <<'NOTES'
+          # Patalania @VERSION@ (Linux x86_64)
 
-          Patalania is an independent third-party viewer. It is not affiliated with, endorsed by or sponsored by Linden Research, nor by The Phoenix Firestorm Project, Inc. Second Life is a trademark of Linden Research, Inc.
+          Patalania is a viewer for Second Life and OpenSim grids with native OpenXR virtual reality support. It is based on Firestorm @BASE@ and on the Second Life viewer by Linden Lab.
 
-          **No support.** This is a hobby project provided as is, without warranty and without any support.
+          **This software is not provided or supported by Linden Lab, the makers of Second Life.** Second Life is a trademark of Linden Research, Inc. Patalania is an independent third-party viewer; it is not affiliated with, endorsed by or sponsored by Linden Research, nor by The Phoenix Firestorm Project, Inc.
 
-          **Install:** extract the archive, then run `./install.sh` inside the extracted folder (installs to `~/.local/opt/patalania` as a normal user, or `/opt/patalania` with sudo, and adds a "Patalania" start menu entry). You can also run `./patalania` directly from the extracted folder.
+          **No support.** Patalania is a hobby project provided as is, without warranty and without any support. You may report bugs on the [issue tracker](https://github.com/@REPO@/issues), but there is no guarantee of an answer or a fix. See [SUPPORT.md](https://github.com/@REPO@/blob/@TAG@/SUPPORT.md).
 
-          - [PRIVACY.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/PRIVACY.md)
-          - [SUPPORT.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/SUPPORT.md)
-          - [Known limitations](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/docs/KNOWN_LIMITATIONS.md)
+          ## VR features
+
+          - Native VR view through OpenXR, tested with WiVRn and a Meta Quest 3
+          - Keyboard and mouse control in VR (no hand controllers needed)
+          - Passthrough hand window for chat, inventory and other floaters
+          - Falls back to a normal desktop viewer if no OpenXR runtime or headset is found
+
+          ## System requirements
+
+          - Linux x86_64 (built on Ubuntu 24.04) with an OpenGL 3.3+ capable GPU and current drivers
+          - For VR: an OpenXR runtime with OpenGL support, e.g. WiVRn, and a headset such as the Meta Quest 3
+          - A broadband internet connection
+
+          ## Installation
+
+          1. Download the `.tar.xz` archive below and extract it.
+          2. Run `./install.sh` inside the extracted folder. It installs to `~/.local/opt/patalania` as a normal user (or `/opt/patalania` with sudo) and adds a "Patalania" start menu entry.
+          3. Alternatively, run `./patalania` directly from the extracted folder.
+
+          ## Important information
+
+          - [Privacy policy (PRIVACY.md)](https://github.com/@REPO@/blob/@TAG@/PRIVACY.md)
+          - [Support information (SUPPORT.md)](https://github.com/@REPO@/blob/@TAG@/SUPPORT.md)
+          - [Known limitations (docs/KNOWN_LIMITATIONS.md)](https://github.com/@REPO@/blob/@TAG@/docs/KNOWN_LIMITATIONS.md)
+
+          Source code: <https://github.com/@REPO@> (LGPL, see the repository for licenses and credits).
           NOTES
           sed -i 's/^          //' release-notes.md
+          sed -i -e "s|@VERSION@|${VERSION}|g" -e "s|@BASE@|${BASE}|g" \
+                 -e "s|@REPO@|${GITHUB_REPOSITORY}|g" -e "s|@TAG@|${GITHUB_REF_NAME}|g" release-notes.md
           gh release create "$GITHUB_REF_NAME" out/*.tar.xz \
             --draft \
             --title "Patalania ${VERSION}" \
