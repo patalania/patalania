@@ -2011,7 +2011,7 @@ if (LINUX)
     execute_process(
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/icons/${ICON_PATH}/firestorm_256.bmp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/res-sdl/firestorm_icon.BMP"
+        "${CMAKE_CURRENT_SOURCE_DIR}/res-sdl/patalania_icon.BMP" # <PAT:Icons/>
       )
 endif (LINUX)
 
@@ -2079,7 +2079,7 @@ if (WINDOWS)
     execute_process(
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/icons/${ICON_PATH}/firestorm_256.BMP"
-        "${CMAKE_CURRENT_SOURCE_DIR}/res-sdl/firestorm_icon.BMP"
+        "${CMAKE_CURRENT_SOURCE_DIR}/res-sdl/patalania_icon.BMP" # <PAT:Icons/>
       )
 
     # Add resource files to the project.
@@ -2117,7 +2117,7 @@ if (WINDOWS)
         res/lltoolzoomout.cur
         res/firestorm_icon.BMP
         res/firestorm_icon.ico
-        res-sdl/firestorm_icon.BMP
+        res-sdl/patalania_icon.BMP
         res/ll_icon_small.ico
         res/resource.h
         res/toolpickobject.cur

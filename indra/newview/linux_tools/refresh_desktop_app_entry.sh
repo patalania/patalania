@@ -8,7 +8,7 @@ install_prefix=$(readlink -f "${RUN_PATH}/..") # <PAT:Installer/> absolute path 
 # <PAT:Rebrand> Install the icon into the hicolor theme (Icon=patalania)
 function install_icons()
 {
-    local src_icon="$1/firestorm_icon.png"
+    local src_icon="$1/patalania_icon.png"
     local icons_base="$2"
 
     if [ ! -f "$src_icon" ]; then

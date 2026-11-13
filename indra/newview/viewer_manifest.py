@@ -2153,7 +2153,7 @@ class LinuxManifest(ViewerManifest):
             self.path("VivoxAUP.txt")
         # </FS:TJ>
         self.path("LGPL-license.txt")
-        self.path("res/firestorm_icon.png","firestorm_icon.png")
+        self.path("res/firestorm_icon.png","patalania_icon.png") # <PAT:Icons/>
         with self.prefix("linux_tools"):
             self.path("client-readme.txt","README-linux.txt")
             self.path("PATALANIA_DESKTOPINSTALL.txt","PATALANIA_DESKTOPINSTALL.txt") # <PAT:Rebrand/>
@@ -2185,7 +2185,7 @@ class LinuxManifest(ViewerManifest):
         icon_path = self.icon_path()
         print("DEBUG: icon_path '%s'" % icon_path)
         with self.prefix(src=icon_path) :
-            self.path("firestorm_256.png","firestorm_48.png")
+            self.path("firestorm_256.png","patalania_48.png") # <PAT:Icons/>
             #with self.prefix(dst="res-sdl") :
             #    self.path("firestorm_256.bmp","ll_icon.BMP")
 

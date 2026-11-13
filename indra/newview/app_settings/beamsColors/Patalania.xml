@@ -1,0 +1,10 @@
+<llsd>
+    <map>
+    <key>endHue</key>
+        <real>230</real>
+    <key>rotateSpeed</key>
+        <real>0.5</real>
+    <key>startHue</key>
+        <real>120</real>
+    </map>
+</llsd>

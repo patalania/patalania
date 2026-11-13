@@ -112,10 +112,17 @@ LLColor4U lggBeamMaps::getCurrentColor(const LLColor4U& agentColor)
 
         std::string path_name(gDirUtilp->getExpandedFilename(LL_PATH_APP_SETTINGS, "beamsColors", ""));
         std::string path_name2(gDirUtilp->getExpandedFilename(LL_PATH_USER_SETTINGS , "beamsColors", ""));
-        std::string filename = path_name + settingName() + ".xml";
+        // <PAT:Beams> The Firestorm "Phoenix" color scheme was replaced by "Patalania"; map old saved settings
+        std::string color_name = settingName();
+        if (color_name == "Phoenix")
+        {
+            color_name = "Patalania";
+        }
+        // </PAT>
+        std::string filename = path_name + color_name + ".xml";
         if (!gDirUtilp->fileExists(filename))
         {
-            filename = path_name2 + settingName() + ".xml";
+            filename = path_name2 + color_name + ".xml";
             if (!gDirUtilp->fileExists(filename))
             {
                 return agentColor;
@@ -223,10 +230,17 @@ F32 lggBeamMaps::setUpAndGetDuration()
         {
             std::string path_name(gDirUtilp->getExpandedFilename(LL_PATH_APP_SETTINGS, "beams", ""));
             std::string path_name2(gDirUtilp->getExpandedFilename(LL_PATH_USER_SETTINGS , "beams", ""));
-            std::string filename = path_name + settingName() + ".xml";
+            // <PAT:Beams> The Firestorm "Phoenix" beam shape was replaced by "Patalania"; map old saved settings
+            std::string shape_name = settingName();
+            if (shape_name == "Phoenix")
+            {
+                shape_name = "Patalania";
+            }
+            // </PAT>
+            std::string filename = path_name + shape_name + ".xml";
             if (!gDirUtilp->fileExists(filename))
             {
-                filename = path_name2 + settingName() + ".xml";
+                filename = path_name2 + shape_name + ".xml";
             }
 
             LLSD mydata = getPic(filename);
