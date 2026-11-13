@@ -37,6 +37,8 @@ class LLFontGL;
 class LLVector3;
 class LLVector3d;
 class LLMatrix4;
+class LLVector2;
+class LLViewerFetchedTexture;
 
 class PATXRSession
 {
@@ -122,6 +124,16 @@ public:
     // LLViewerWindow::setUIVisibility(): hiding the UI in VR must not leave
     // mouselook (Firestorm switches to third person when the UI is hidden).
     static bool keepCameraOnUIHide();
+
+    // RLVa @setoverlay (rlveffects.cpp), no-ops outside VR:
+    // RlvOverlayEffect::run(): true = handled here (drawn head-locked into the
+    // eye being finished, or skipped on the desktop window because it shows the
+    // left eye with the overlay already in it); false = draw as on the desktop.
+    static bool drawRlvOverlay(LLViewerFetchedTexture* image, const LLColor4& color);
+    // RlvOverlayEffect::hitTest(): in VR, uv becomes the overlay texture
+    // coordinate along the pointer ray through window position x, y. Returns
+    // false when the ray is outside the view (covered). Desktop: uv unchanged, true.
+    static bool rlvOverlayCoord(S32 x, S32 y, LLVector2& uv);
 };
 
 #endif // PAT_XRSESSION_H

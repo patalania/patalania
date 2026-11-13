@@ -1527,6 +1527,25 @@ bool PATXRSession::keepCameraOnUIHide()
     return sXR.running;
 }
 
+bool PATXRSession::drawRlvOverlay(LLViewerFetchedTexture* image, const LLColor4& color)
+{
+    return sXR.running && PATXRStereo::drawOverlay(image, color);
+}
+
+bool PATXRSession::rlvOverlayCoord(S32 x, S32 y, LLVector2& uv)
+{
+    if (!sXR.running || !PATXRStereo::overlayActive())
+    {
+        return true;
+    }
+    LLVector3 dir;
+    if (!mouseDirection(x, y, dir))
+    {
+        return true; // no VR pointer ray: window mapping as on the desktop
+    }
+    return PATXRStereo::overlayCoord(dir, uv);
+}
+
 PATXRSession::PointerCamera::PointerCamera()
 {
     XrVector3f origin, at, up;
@@ -1692,6 +1711,16 @@ PATXRSession::PointerCamera::~PointerCamera()
 
 void PATXRSession::offsetProjection(LLMatrix4&)
 {
+}
+
+bool PATXRSession::drawRlvOverlay(LLViewerFetchedTexture*, const LLColor4&)
+{
+    return false;
+}
+
+bool PATXRSession::rlvOverlayCoord(S32, S32, LLVector2&)
+{
+    return true;
 }
 
 LLVector3 PATXRSession::nameTagDepth(const LLVector3&)

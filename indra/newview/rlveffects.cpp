@@ -23,6 +23,7 @@
 #include "llviewerwindow.h"
 #include "llvoavatarself.h"
 #include "pipeline.h"
+#include "patxrsession.h" // <PAT:XR/>
 
 #include "rlveffects.h"
 #include "rlvhandler.h"
@@ -95,7 +96,13 @@ bool RlvOverlayEffect::hitTest(const LLCoordGL& ptMouse) const
     if (!m_pImage)
         return false;
 
-    return (m_fBlockTouch) && (m_pImage->getMask(LLVector2((float)ptMouse.mX / gViewerWindow->getWorldViewWidthScaled(), (float)ptMouse.mY / gViewerWindow->getWorldViewHeightScaled())));
+// <PAT:XR> VR: the overlay is head-locked in the eyes, the pointer ray picks the texel (outside the view = covered)
+//  return (m_fBlockTouch) && (m_pImage->getMask(LLVector2((float)ptMouse.mX / gViewerWindow->getWorldViewWidthScaled(), (float)ptMouse.mY / gViewerWindow->getWorldViewHeightScaled())));
+    LLVector2 uv((float)ptMouse.mX / gViewerWindow->getWorldViewWidthScaled(), (float)ptMouse.mY / gViewerWindow->getWorldViewHeightScaled());
+    if (!PATXRSession::rlvOverlayCoord(ptMouse.mX, ptMouse.mY, uv))
+        return m_fBlockTouch;
+    return (m_fBlockTouch) && (m_pImage->getMask(uv));
+// </PAT:XR>
 }
 
 void RlvOverlayEffect::setImage(const LLUUID& idTexture)
@@ -114,6 +121,8 @@ void RlvOverlayEffect::run(const LLVisualEffectParams*)
 {
     if (m_pImage)
     {
+        if (PATXRSession::drawRlvOverlay(m_pImage, LLColor4(m_Color.get(), llclamp(m_nAlpha.get(), 0.0f, 1.0f)))) // <PAT:XR/> VR: head-locked in both eyes
+            return;
         gUIProgram.bind();
 
         int nWidth = gViewerWindow->getWorldViewWidthScaled();

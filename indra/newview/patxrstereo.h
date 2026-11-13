@@ -31,7 +31,9 @@
 
 class LLColor4;
 class LLFontGL;
+class LLVector2;
 class LLVector3;
+class LLViewerFetchedTexture;
 
 // How the world gets into both eyes with as few changes to Firestorm as possible:
 //
@@ -82,6 +84,16 @@ namespace PATXRStereo
 
     // Hook 3 (top of renderFinalize). True = desktop mirror drawn, skip the rest.
     bool drawDesktopMirror();
+
+    // RLVa @setoverlay (RlvOverlayEffect::run hook): in an eye, draws the
+    // texture head-locked over the eye image; on the desktop window, true when it
+    // shows the left eye (overlay already in there). False = draw as on the desktop.
+    bool drawOverlay(LLViewerFetchedTexture* image, const LLColor4& color);
+    // RlvOverlayEffect::hitTest hook: texture coordinate of the head-locked
+    // overlay along a ray (agent frame) of the last rendered frame; false when
+    // the ray is outside the view (counts as covered).
+    bool overlayActive();
+    bool overlayCoord(const LLVector3& dir_agent, LLVector2& uv);
 
     // Phase 8: LOCAL space -> agent frame, with the mapping of the last rendered
     // frame (viewer camera x head reference). False before the first eye frame.

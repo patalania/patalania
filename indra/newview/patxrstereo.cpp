@@ -52,6 +52,10 @@
 #include "llvoavatarself.h"
 #include "llwindow.h"
 #include "pipeline.h"
+#include "llviewertexture.h"
+#include "llviewershadermgr.h"
+#include "llvisualeffect.h"
+#include "rlvactions.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -128,6 +132,14 @@ namespace
     glm::mat4 sView[2];
     LLVector3 sEyeOrigin[2], sEyeAt[2], sEyeLeft[2], sEyeUp[2];
     U64 sEyeFrames = 0;
+    // RLVa @setoverlay, head-locked: the texture spans the union of both eye
+    // FOVs (tangents in the head frame) with the same mapping in both eyes, i.e.
+    // it sits at infinity and both eyes see the holes at the same place.
+    F32 sEyeTan[2][4] = {};          // per eye: left, right, down, up
+    F32 sUnionTan[4] = { -1.f, 1.f, -1.f, 1.f };
+    bool sHaveOverlayFrame = false;  // eye frame for the overlay pick (last rendered frame)
+    S32 sCurEye = -1;                // eye being finished (finishEye)
+    bool sMirrorShown = false;       // desktop shows the left eye this frame
 
     Vec3 rotate(const XrQuaternionf& q, const Vec3& v)
     {
@@ -317,6 +329,19 @@ namespace
         }
         cam.setAxes(level_at, LLVector3::z_axis % level_at, LLVector3::z_axis);
         render_hud_elements();
+        // RLVa @setoverlay: same layer as on the desktop (render_ui): above the
+        // world and render_hud_elements(), below name tags/hover text, HUDs and
+        // the UI (those are on the panel, a layer above the eyes). The effect's
+        // run() calls PATXRStereo::drawOverlay() (hook in rlveffects.cpp).
+        if (RlvActions::hasBehaviour(RLV_BHVR_SETOVERLAY))
+        {
+            sCurEye = (S32)eye;
+            loadMatrices(sProj[eye], sView[eye]);
+            LLVfxManager::instance().runEffect(EVisualEffect::RlvOverlay);
+            sCurEye = -1;
+            loadMatrices(sProj[eye], sView[eye]);
+            eyeViewport();
+        }
         {
             LLGLSUIDefault gls_ui;
             gPipeline.disableLights();
@@ -520,10 +545,23 @@ bool PATXRStereo::beginEyes(const XrView views[2])
 
         const XrFovf& fov = views[i].fov;
         sProj[i] = frustumOf(tanf(fov.angleLeft), tanf(fov.angleRight), tanf(fov.angleDown), tanf(fov.angleUp), z_near, z_far);
+        sEyeTan[i][0] = tanf(fov.angleLeft);
+        sEyeTan[i][1] = tanf(fov.angleRight);
+        sEyeTan[i][2] = tanf(fov.angleDown);
+        sEyeTan[i][3] = tanf(fov.angleUp);
         tl = llmin(tl, tanf(fov.angleLeft));
         tr = llmax(tr, tanf(fov.angleRight));
         td = llmin(td, tanf(fov.angleDown));
         tu = llmax(tu, tanf(fov.angleUp));
+    }
+
+    if (tr - tl > 0.01f && tu - td > 0.01f)
+    {
+        sUnionTan[0] = tl;
+        sUnionTan[1] = tr;
+        sUnionTan[2] = td;
+        sUnionTan[3] = tu;
+        sHaveOverlayFrame = true;
     }
 
     // From here on the pipeline renders at eye resolution.
@@ -706,11 +744,17 @@ bool PATXRStereo::drawHudText(const LLWString& text, const LLVector3& pos_agent,
 
 bool PATXRStereo::drawDesktopMirror()
 {
-    if (!sMirrorPending || sInEyes)
+    if (sInEyes)
+    {
+        return false;
+    }
+    sMirrorShown = false;
+    if (!sMirrorPending)
     {
         return false;
     }
     sMirrorPending = false;
+    sMirrorShown = true;
 
     // Left eye, centre cropped to the aspect of the world view.
     const LLRect r = gViewerWindow->getWorldViewRectRaw();
@@ -751,6 +795,108 @@ bool PATXRStereo::drawDesktopMirror()
         glEnable(GL_SCISSOR_TEST);
     }
     gGL.setSceneBlendType(LLRender::BT_ALPHA); // as renderFinalize leaves it
+    return true;
+}
+
+bool PATXRStereo::drawOverlay(LLViewerFetchedTexture* image, const LLColor4& color)
+{
+    if (!sInEyes)
+    {
+        // Desktop window: when it shows the left eye, the overlay is already in
+        // that image (head-locked); drawing it again would double it.
+        return sMirrorShown;
+    }
+    if (sCurEye < 0 || !image)
+    {
+        return true; // never on the panel or flat over the eye
+    }
+    const F32* et = sEyeTan[sCurEye];
+    const F32 uw = sUnionTan[1] - sUnionTan[0];
+    const F32 vh = sUnionTan[3] - sUnionTan[2];
+    // Eye edges in texture coordinates. Both eyes look the same way (parallel
+    // views), so the head-frame tangent is linear across each eye image.
+    const F32 u0 = (et[0] - sUnionTan[0]) / uw, u1 = (et[1] - sUnionTan[0]) / uw;
+    const F32 v0 = (et[2] - sUnionTan[2]) / vh, v1 = (et[3] - sUnionTan[2]) / vh;
+
+    image->addTextureStats((F32)(sW * sH));
+    image->setKnownDrawSize(sW, sH);
+
+    LLGLSLShader* prev = LLGLSLShader::sCurBoundShaderPtr;
+    gUIProgram.bind();
+    {
+        LLGLSUIDefault gls_ui;
+        LLGLDisable cull(GL_CULL_FACE);
+        gGL.setColorMask(true, true); // alpha is forced to 1 afterwards (forceOpaqueAlpha)
+        gGL.setSceneBlendType(LLRender::BT_ALPHA);
+        eyeViewport();
+        gGL.matrixMode(LLRender::MM_PROJECTION);
+        gGL.pushMatrix();
+        gGL.loadIdentity();
+        gGL.ortho(0.f, 1.f, 0.f, 1.f, -1.f, 1.f);
+        gGL.matrixMode(LLRender::MM_MODELVIEW);
+        gGL.pushMatrix();
+        gGL.loadIdentity();
+
+        gGL.getTexUnit(0)->bind(image);
+        gGL.color4fv(color.mV);
+        gGL.begin(LLRender::TRIANGLES);
+        gGL.texCoord2f(u1, v1); gGL.vertex2f(1.f, 1.f);
+        gGL.texCoord2f(u0, v1); gGL.vertex2f(0.f, 1.f);
+        gGL.texCoord2f(u0, v0); gGL.vertex2f(0.f, 0.f);
+        gGL.texCoord2f(u1, v1); gGL.vertex2f(1.f, 1.f);
+        gGL.texCoord2f(u0, v0); gGL.vertex2f(0.f, 0.f);
+        gGL.texCoord2f(u1, v0); gGL.vertex2f(1.f, 0.f);
+        gGL.end();
+        gGL.flush();
+        gGL.getTexUnit(0)->unbind(LLTexUnit::TT_TEXTURE);
+
+        gGL.matrixMode(LLRender::MM_PROJECTION);
+        gGL.popMatrix();
+        gGL.matrixMode(LLRender::MM_MODELVIEW);
+        gGL.popMatrix();
+    }
+    if (prev)
+    {
+        prev->bind();
+    }
+    else
+    {
+        gUIProgram.unbind();
+    }
+
+    static F64 last_log = 0.0;
+    const F64 now = LLTimer::getTotalSeconds();
+    if (now - last_log > 10.0)
+    {
+        last_log = now;
+        LL_INFOS("PATXR") << llformat("RLV overlay in the eyes: eye %d u %.3f..%.3f v %.3f..%.3f, colour %.2f %.2f %.2f alpha %.2f",
+                                      sCurEye, u0, u1, v0, v1, color.mV[0], color.mV[1], color.mV[2], color.mV[3]) << LL_ENDL;
+    }
+    return true;
+}
+
+bool PATXRStereo::overlayActive()
+{
+    return sInitialised && sHaveOverlayFrame;
+}
+
+bool PATXRStereo::overlayCoord(const LLVector3& dir_agent, LLVector2& uv)
+{
+    // Head frame of the last rendered frame (the overlay moves with it).
+    const F32 f = dir_agent * sEyeAt[0];
+    if (f <= 0.001f)
+    {
+        return false; // behind the head
+    }
+    const F32 tx = (dir_agent * -sEyeLeft[0]) / f; // right
+    const F32 ty = (dir_agent * sEyeUp[0]) / f;
+    const F32 u = (tx - sUnionTan[0]) / (sUnionTan[1] - sUnionTan[0]);
+    const F32 v = (ty - sUnionTan[2]) / (sUnionTan[3] - sUnionTan[2]);
+    if (!(u >= 0.f && u <= 1.f && v >= 0.f && v <= 1.f))
+    {
+        return false; // outside the view, covered by the overlay
+    }
+    uv.set(llclamp(u, 0.f, 0.999f), llclamp(v, 0.f, 0.999f));
     return true;
 }
 
@@ -889,6 +1035,9 @@ void PATXRStereo::release(bool viewer_shutdown)
     sHaveMap = false;
     sInEyes = false;
     sMirrorPending = false;
+    sMirrorShown = false;
+    sHaveOverlayFrame = false;
+    sCurEye = -1;
     for (LLRenderTarget& rt : sEyeRT)
     {
         rt.release();
