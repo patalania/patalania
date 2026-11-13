@@ -1011,6 +1011,15 @@ void PATXRUI::update(F32 dt, const XrPosef& left_eye, const XrPosef& right_eye)
         placeAt(sEye, yaw);
     }
     handleKeys(dt);
+    // Leaving mouselook shows toolbars, bars and chat again (Firestorm); with the UI
+    // hidden (Ctrl+Shift+Space) it has to stay completely hidden.
+    static bool was_mouselook = false;
+    const bool mouselook = gAgentCamera.cameraMouselook();
+    if (sHidden && was_mouselook && !mouselook && gViewerWindow)
+    {
+        gViewerWindow->setUIVisibility(false);
+    }
+    was_mouselook = mouselook;
     updateHeight();
 }
 
