@@ -40,6 +40,9 @@
 #include "patxrui.h"
 
 #include "llagent.h"
+#include "llfloater.h"
+#include "llfloaterreg.h"
+#include "llscriptfloater.h"
 #include "llgl.h"
 #include "llkeyboard.h"
 #include "llmanip.h"
@@ -63,6 +66,77 @@
 #include <mutex>
 #include <thread>
 #include <vector>
+
+namespace
+{
+    // Script dialogs (llDialog/llTextBox, LLScriptFloater) are placed once in
+    // pixels at a screen corner (POSITIONING_SPECIFIED), so LLFloaterView::reshape
+    // leaves them where they were. When the UI scale changes (VR on/off, VR UI
+    // size), the scaled UI size changes and they ended up outside the panel.
+    // Keep them at their corner of the new size and fully inside. Other
+    // floaters are positioned relatively by Firestorm and stay untouched.
+    bool sFitDialogs = false;
+    S32 sFitOldW = 0, sFitOldH = 0;
+    F64 sFitSince = 0.0;
+
+    void watchScriptDialogs()
+    {
+        if (!gFloaterView)
+        {
+            return;
+        }
+        if (!sFitDialogs)
+        {
+            sFitOldW = gFloaterView->getRect().getWidth();
+            sFitOldH = gFloaterView->getRect().getHeight();
+        }
+        sFitDialogs = true;
+        sFitSince = LLTimer::getTotalSeconds();
+    }
+
+    void fitScriptDialogs()
+    {
+        if (!sFitDialogs || !gFloaterView)
+        {
+            return;
+        }
+        const S32 new_w = gFloaterView->getRect().getWidth();
+        const S32 new_h = gFloaterView->getRect().getHeight();
+        if (new_w == sFitOldW && new_h == sFitOldH)
+        {
+            if (LLTimer::getTotalSeconds() - sFitSince > 3.0)
+            {
+                sFitDialogs = false; // scale did not change the size after all
+            }
+            return;
+        }
+        sFitDialogs = false;
+        S32 moved = 0;
+        for (LLFloater* floater : LLFloaterReg::getFloaterList("script_floater"))
+        {
+            LLScriptFloater* dialog = dynamic_cast<LLScriptFloater*>(floater);
+            if (!dialog || dialog->isDocked() || dialog->isMinimized() || dialog->isDependent())
+            {
+                continue;
+            }
+            const LLRect r = dialog->getRect();
+            // Stay at the nearer corner: same distance from the right/top edge
+            // (or left/bottom) as before.
+            const bool right = r.getCenterX() > sFitOldW / 2;
+            const bool top = r.getCenterY() > sFitOldH / 2;
+            const S32 left = right ? new_w - (sFitOldW - r.mLeft) : r.mLeft;
+            const S32 bottom = top ? new_h - (sFitOldH - r.mBottom) : r.mBottom;
+            dialog->setOrigin(left, bottom);
+            gFloaterView->adjustToFitScreen(dialog, false);
+            ++moved;
+        }
+        if (moved > 0)
+        {
+            LL_INFOS("PATXR") << "Script dialogs fitted to the new UI size: " << moved << " (" << sFitOldW << "x" << sFitOldH
+                              << " -> " << new_w << "x" << new_h << ")" << LL_ENDL;
+        }
+    }
+}
 
 namespace
 {
@@ -256,6 +330,7 @@ namespace
         sXR = XRState();
         if (ui_was_active && !viewer_shutdown && gViewerWindow)
         {
+            watchScriptDialogs();
             gViewerWindow->requestResolutionUpdate(); // UI scale back to the desktop value
         }
     }
@@ -1161,6 +1236,7 @@ namespace
             sXR.uiScale = PATXRUI::uiScale();
             if (gViewerWindow)
             {
+                watchScriptDialogs();
                 gViewerWindow->requestResolutionUpdate(); // UI scale of the panel
             }
             LL_INFOS("PATXR") << "UI scale " << sXR.uiScale << (PATXRUI::useQuadLayer() ? ", panel as quad layer" : ", panel drawn into the eye images") << LL_ENDL;
@@ -1170,6 +1246,7 @@ namespace
             sXR.uiScale = PATXRUI::uiScale();
             if (gViewerWindow)
             {
+                watchScriptDialogs();
                 gViewerWindow->requestResolutionUpdate();
             }
         }
@@ -1232,6 +1309,7 @@ void PATXRSession::frame()
         reg.add("PAT.VR.MeasureKeyboard", [](LLUICtrl*, const LLSD&) { PATXRKeyboard::requestMeasure(); });
         reg.add("PAT.VR.CentreUI", [](LLUICtrl*, const LLSD&) { PATXRUI::recentre(); });
     }
+    fitScriptDialogs();
     if (!gGLManager.mInited)
     {
         return;
