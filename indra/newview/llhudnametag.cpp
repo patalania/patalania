@@ -299,7 +299,6 @@ void LLHUDNameTag::renderText()
     LLRect screen_rect;
     screen_rect.setCenterAndSize(0, static_cast<S32>(lltrunc(-mHeight / 2 + mOffsetY)), static_cast<S32>(lltrunc(mWidth)), static_cast<S32>(lltrunc(mHeight)));
     mRoundedRectImgp->draw3D(render_position, x_pixel_vec, y_pixel_vec, screen_rect, bg_color);
-    PATXRSession::nameTagDrawn(render_position, x_pixel_vec, y_pixel_vec, screen_rect, color_alpha); // <PAT:XR/> VR pointer: plate as drawn
     if (mLabelSegments.size())
     {
         LLRect label_top_rect = screen_rect;

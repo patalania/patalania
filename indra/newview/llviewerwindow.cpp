@@ -4118,7 +4118,6 @@ void LLViewerWindow::updateUI()
             {
                 LL_DEBUGS("UserInput") << "hover not handled by mouse captor" << LL_ENDL;
             }
-            PATXRSession::pointerHover(dynamic_cast<LLView*>(mouse_captor) != nullptr); // <PAT:XR/> VR: pointer depth
         }
         else
         {
@@ -4152,7 +4151,6 @@ void LLViewerWindow::updateUI()
                 }
             }
 
-            const bool pat_over_ui = handled; // <PAT:XR/>
             if (!handled)
             {
                 LLTool *tool = LLToolMgr::getInstance()->getCurrentTool();
@@ -4162,7 +4160,6 @@ void LLViewerWindow::updateUI()
                     handled = tool->handleHover(x, y, mask);
                 }
             }
-            PATXRSession::pointerHover(pat_over_ui); // <PAT:XR/> VR: pointer depth
         }
 
         // Show a new tool tip (or update one that is already shown)
@@ -4265,7 +4262,6 @@ void LLViewerWindow::updateUI()
         {
             handled = tool->handleHover(x, y, mask);
         }
-        PATXRSession::pointerHover(false); // <PAT:XR/> VR: pointer depth
     }
 
     updateLayout();

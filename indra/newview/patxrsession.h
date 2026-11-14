@@ -76,11 +76,6 @@ public:
     // head centre, distance scaling) instead of the desktop screen rectangle.
     // Returns false outside VR (desktop pick unchanged).
     static bool nameTagPickVectors(const LLVector3& pos_agent, LLVector3& up, LLVector3& right);
-    // LLHUDNameTag::renderText(): a name tag plate drawn into the eyes (origin, pixel
-    // axes, rect in pixels as drawn, background alpha) - the VR pointer depth uses
-    // exactly the plates of the frame, not a pick box.
-    static void nameTagDrawn(const LLVector3& origin, const LLVector3& x_axis, const LLVector3& y_axis, const LLRect& rect,
-                             F32 bg_alpha);
     static bool drawHudText(const LLWString& text, const LLVector3& pos_agent, const LLVector3& right_axis,
                             const LLVector3& up_axis, const LLFontGL& font, U8 style, S32 shadow, const LLColor4& color);
 
@@ -109,11 +104,6 @@ public:
     static F32 uiScale();
     // LLViewerWindow::updateUI(): the VR pointer may be outside the window (beyond the panel, in the world).
     static bool pointerBeyondWindow();
-    // LLViewerWindow::updateUI(), after the hover went out: over_ui = a UI view took
-    // it (or holds the mouse). Sets the depth the VR pointer is drawn at: the panel
-    // over the UI, else the hit along the click ray (the hover pick of the pointer
-    // tool when it just ran, otherwise an own pick without side effects).
-    static void pointerHover(bool over_ui);
     // FSNearbyChatControl::autohide(): the whole UI is hidden in VR (the chat bar hides again after use).
     static bool uiHidden();
     // LLViewerWindow::performPick(): pick callbacks (manipulator highlights) run

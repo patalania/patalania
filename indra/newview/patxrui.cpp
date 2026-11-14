@@ -42,14 +42,12 @@
 #include "lltoolfocus.h"
 #include "llrender.h"
 #include "llrendertarget.h"
-#include "lltooltip.h"
 #include "llviewercontrol.h"
 #include "llviewerwindow.h"
 #include "llwindow.h"
 #include "pipeline.h"
 
 #include <cmath>
-#include <functional>
 
 namespace
 {
@@ -62,9 +60,6 @@ namespace
     constexpr F32 FOLLOW_START = 25.f * DEG_TO_RAD; // mode "follow": start turning after the view left this far
     constexpr F32 FOLLOW_STOP = 3.f * DEG_TO_RAD;
     constexpr F32 FOLLOW_TIME = 0.4f;   // s, time constant of the follow movement
-    constexpr F32 POINTER_MIN_DIST = 0.1f;  // m, nearest pointer depth in the world
-    constexpr F32 POINTER_SKY_DIST = 20.f;  // m, depth without a hit (sky) and farthest depth
-    constexpr F32 POINTER_IN_FRONT = 0.985f;   // hits: slightly in front of the surface, never behind it
 
     // PATVRUIMode
     enum EMode { MODE_ROOM = 0, MODE_HEAD = 1, MODE_FOLLOW = 2 };
@@ -171,7 +166,7 @@ namespace
     GLuint sFbo = 0;
 
     GLuint sProgram = 0, sVAO = 0, sVBO = 0, sDepthSampler = 0;
-    GLint sTexLoc = -1, sAlphaFixLoc = -1, sDepthLoc = -1, sTintLoc = -1;
+    GLint sTexLoc = -1, sAlphaFixLoc = -1, sDepthLoc = -1;
     bool sGLFailed = false;
 
     // Panel in the LOCAL space: centre, right/up/normal (normal towards the user), size.
@@ -189,18 +184,6 @@ namespace
     bool sFollowing = false;
     // Ctrl+Shift+Space: whole UI (floaters, menus, HUDs) hidden; the pointer stays for world clicks.
     bool sHidden = false;
-
-    // Pointer depth (PATXRUI::setPointerTarget)
-    bool sPtrOnUI = true;
-    F32 sPtrTarget = -1.f;   // world: metres along the ray, <= 0 = sky
-    F32 sPtrDepth = -1.f;    // smoothed depth actually drawn, -1 = not yet known
-
-    // Tooltip at the pointer while it is over the world: cut out of the panel
-    // texture in prepare() and drawn at the pointer depth (drawWorldPointer).
-    GLuint sTipTex = 0;
-    S32 sTipTexW = 0, sTipTexH = 0;
-    bool sTipValid = false;
-    S32 sTipX = 0, sTipY = 0, sTipW = 0, sTipH = 0; // panel pixels, GL (y up)
     bool sSavedUIVisible = true;
     bool sSavedHUDs = true;
 
@@ -280,7 +263,6 @@ namespace
         "uniform sampler2D tex;\n"
         "uniform sampler2D depth_tex;\n"
         "uniform int alpha_fix;\n"
-        "uniform int tint;\n"
         "in vec2 v_uv;\n"
         "out vec4 frag_color;\n"
         "void main()\n"
@@ -292,11 +274,6 @@ namespace
         "        c.a = max(c.a, max(c.r, max(c.g, c.b)));\n"
         "        if (texture(depth_tex, v_uv).r < 1.0) c.a = 1.0;\n"
         "        c.rgb = min(c.rgb, vec3(c.a));\n"
-        "    }\n"
-        "    if (tint != 0)\n"
-        "    {\n"
-        "        float l = max(c.r, max(c.g, c.b));\n"
-        "        c.rgb = tint == 1 ? vec3(l, 0.0, 0.0) : vec3(0.0, l, 0.0);\n"
         "    }\n"
         "    frag_color = c;\n"
         "}\n";
@@ -355,7 +332,6 @@ namespace
         sTexLoc = glGetUniformLocation(sProgram, "tex");
         sAlphaFixLoc = glGetUniformLocation(sProgram, "alpha_fix");
         sDepthLoc = glGetUniformLocation(sProgram, "depth_tex");
-        sTintLoc = glGetUniformLocation(sProgram, "tint");
         glGenSamplers(1, &sDepthSampler);
         glSamplerParameteri(sDepthSampler, GL_TEXTURE_COMPARE_MODE, GL_NONE);
         glSamplerParameteri(sDepthSampler, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -580,109 +556,6 @@ namespace
                (gAgentCamera.cameraMouselook() || LLToolCamera::getInstance()->hasMouseCapture());
     }
 
-    // Point on the panel plane under the mouse (LOCAL space); inside = on the panel itself.
-    bool pointerPanelPoint(XrVector3f& p, bool& inside, F32* px = nullptr, F32* py = nullptr)
-    {
-        if (!gViewerWindow || sTexW <= 0 || sTexH <= 0)
-        {
-            return false;
-        }
-        const LLVector2& scale = gViewerWindow->getDisplayScale();
-        const LLCoordGL mouse = gViewerWindow->getCurrentMouse();
-        const F32 mx = (F32)mouse.mX * scale.mV[VX];
-        const F32 my = (F32)mouse.mY * scale.mV[VY];
-        inside = mx >= 0.f && my >= 0.f && mx < (F32)sTexW && my < (F32)sTexH;
-        if (px && py)
-        {
-            *px = mx;
-            *py = my;
-        }
-        p = add(add(sC, mul(sR, (mx / sTexW - 0.5f) * sW)), mul(sU, (my / sTexH - 0.5f) * sH));
-        return true;
-    }
-
-    // Once per frame: the drawn depth = the hit under the pointer (over the UI: the panel).
-    void updatePointerDepth(F32 /*dt*/)
-    {
-        XrVector3f p;
-        bool inside = false;
-        if (!sPlaced || !sEyeValid || !pointerPanelPoint(p, inside))
-        {
-            return;
-        }
-        XrVector3f to_p = sub(p, sEye);
-        const F32 panel_dist = llmax(POINTER_MIN_DIST, norm(to_p));
-        if (inside && sPtrOnUI)
-        {
-            sPtrDepth = panel_dist;
-            return;
-        }
-        // Always the depth of the hit under the pointer, at once in both directions:
-        // the eyes see a pointer at the wrong depth double, a depth jump is less of a bother.
-        sPtrDepth = sPtrTarget > 0.f ? llclamp(sPtrTarget * POINTER_IN_FRONT, POINTER_MIN_DIST, POINTER_SKY_DIST)
-                                     : POINTER_SKY_DIST;
-        // Diagnosis: fixed depth in metres (0 = off).
-        static LLCachedControl<F32> fixed_depth(gSavedSettings, "PATVRPointerFixedDepth", 0.f);
-        if ((F32)fixed_depth > 0.f)
-        {
-            sPtrDepth = llclamp((F32)fixed_depth, POINTER_MIN_DIST, 100.f);
-        }
-    }
-
-    // Panel texture bound as draw target on sFbo: while the pointer is over the
-    // world, move the tooltip next to it out of the panel (it would sit in the
-    // panel plane while the eyes look at the hit, and be seen double).
-    void grabToolTip()
-    {
-        sTipValid = false;
-        if (sPtrOnUI || !gViewerWindow || !LLToolTipMgr::instance().toolTipVisible())
-        {
-            return;
-        }
-        const LLRect r = LLToolTipMgr::instance().getToolTipRect();
-        const LLVector2& scale = gViewerWindow->getDisplayScale();
-        const S32 x0 = llclamp(ll_round((F32)r.mLeft * scale.mV[VX]), 0, sTexW);
-        const S32 x1 = llclamp(ll_round((F32)r.mRight * scale.mV[VX]), 0, sTexW);
-        const S32 y0 = llclamp(ll_round((F32)r.mBottom * scale.mV[VY]), 0, sTexH);
-        const S32 y1 = llclamp(ll_round((F32)r.mTop * scale.mV[VY]), 0, sTexH);
-        if (x1 - x0 < 2 || y1 - y0 < 2)
-        {
-            return;
-        }
-        sTipX = x0;
-        sTipY = y0;
-        sTipW = x1 - x0;
-        sTipH = y1 - y0;
-        if (!sTipTex)
-        {
-            glGenTextures(1, &sTipTex);
-        }
-        glBindTexture(GL_TEXTURE_2D, sTipTex);
-        if (sTipTexW != sTipW || sTipTexH != sTipH)
-        {
-            sTipTexW = sTipW;
-            sTipTexH = sTipH;
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, sTipW, sTipH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        }
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, sFbo);
-        glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, sTipX, sTipY, sTipW, sTipH);
-        glGenerateMipmap(GL_TEXTURE_2D);
-        // cut it out of the panel: there the world shows through, the tooltip is drawn at the pointer
-        GLfloat clear[4] = { 0.f, 0.f, 0.f, 0.f };
-        glGetFloatv(GL_COLOR_CLEAR_VALUE, clear);
-        glEnable(GL_SCISSOR_TEST);
-        glScissor(sTipX, sTipY, sTipW, sTipH);
-        glClearColor(0.f, 0.f, 0.f, 0.f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glDisable(GL_SCISSOR_TEST);
-        glClearColor(clear[0], clear[1], clear[2], clear[3]);
-        sTipValid = true;
-    }
-
     // Pointer onto the panel texture (bound as draw target, blending set up).
     void drawPointer()
     {
@@ -697,10 +570,6 @@ namespace
         if (mx < 0.f || my < 0.f || mx >= (F32)sTexW || my >= (F32)sTexH)
         {
             return; // beyond the panel: drawn in the world (drawWorldPointer)
-        }
-        if (!sPtrOnUI)
-        {
-            return; // over the world seen through the panel: drawn at the depth of the hit (drawWorldPointer)
         }
         static LLCachedControl<F32> cursor_scale(gSavedSettings, "PATVRCursorScale", 1.f);
         const F32 s = llclamp((F32)cursor_scale, 0.25f, 4.f) * llmax(1.f, scale.mV[VX]);
@@ -956,13 +825,6 @@ void PATXRUI::release()
         glDeleteTextures(1, &sPanelTex);
         sPanelTex = 0;
     }
-    if (sTipTex)
-    {
-        glDeleteTextures(1, &sTipTex);
-        sTipTex = 0;
-    }
-    sTipTexW = sTipTexH = 0;
-    sTipValid = false;
     if (sFbo)
     {
         glDeleteFramebuffers(1, &sFbo);
@@ -1107,7 +969,6 @@ void PATXRUI::update(F32 dt, const XrPosef& left_eye, const XrPosef& right_eye)
 {
     sEye = mul(add(left_eye.position, right_eye.position), 0.5f);
     sEyeValid = true;
-    updatePointerDepth(dt);
     const EMode m = mode();
     if (m == MODE_HEAD)
     {
@@ -1221,7 +1082,6 @@ void PATXRUI::prepare()
     drawQuad(clip, FULL_UV);
     glEnable(GL_BLEND);
     glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-    grabToolTip();
     drawPointer();
 
     glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
@@ -1347,38 +1207,33 @@ bool PATXRUI::pointerCamera(XrVector3f& origin, XrVector3f& at, XrVector3f& up, 
     return true;
 }
 
-bool PATXRUI::drawWorldPointerWith(const std::function<bool(const XrVector3f&, F32*)>& to_clip, GLuint texture, S32 width,
-                                   S32 height, S32 eye)
+void PATXRUI::drawWorldPointer(const XrView& view, GLuint texture, S32 width, S32 height)
 {
     if (!hasImage() || !gViewerWindow || !gViewerWindow->getWindow() || pointerHidden() || sTexW <= 0)
     {
-        return false;
+        return;
     }
-    XrVector3f p;
-    bool inside = false;
-    F32 mx = 0.f, my = 0.f;
-    if (!pointerPanelPoint(p, inside, &mx, &my) || (inside && sPtrOnUI))
+    const LLVector2& scale = gViewerWindow->getDisplayScale();
+    const LLCoordGL mouse = gViewerWindow->getCurrentMouse();
+    const F32 mx = (F32)mouse.mX * scale.mV[VX];
+    const F32 my = (F32)mouse.mY * scale.mV[VY];
+    if (mx >= 0.f && my >= 0.f && mx < (F32)sTexW && my < (F32)sTexH)
     {
-        return false; // over the UI: drawn into the panel texture
+        return; // on the panel: drawn into the panel texture
     }
     CursorImage* img = cursorImage(gViewerWindow->getWindow()->getCursor());
     if (!img)
     {
-        return false;
+        return;
     }
-    // Along the ray from the eye centre through the panel point (the click ray),
-    // at the depth of what it points at; parallel to the panel, same angular size.
-    const LLVector2& scale = gViewerWindow->getDisplayScale();
+    const XrVector3f p = add(add(sC, mul(sR, (mx / sTexW - 0.5f) * sW)), mul(sU, (my / sTexH - 0.5f) * sH));
     const F32 t = llmax(0.05f, dot(sub(sEye, sC), sN));
-    XrVector3f dir = sub(p, sEye);
-    const F32 panel_dist = norm(dir);
-    const F32 depth = sPtrDepth > 0.f ? sPtrDepth : panel_dist;
-    const XrVector3f q = add(sEye, mul(dir, depth));
-    const F32 k = depth / t;
+    XrVector3f to_p = sub(p, sEye);
+    const F32 k = norm(to_p) / t; // same angular size as on the panel
     static LLCachedControl<F32> cursor_scale(gSavedSettings, "PATVRCursorScale", 1.f);
     const F32 m = (sW / (F32)sTexW) * k * llclamp((F32)cursor_scale, 0.25f, 4.f) * llmax(1.f, scale.mV[VX]);
-    // image pixel (x right, y down) relative to the hot spot -> plane parallel to the panel
-    auto corner = [&](F32 ix, F32 iy) { return add(add(q, mul(sR, (ix - img->hot_x) * m)), mul(sU, -(iy - img->hot_y) * m)); };
+    // image pixel (x right, y down) relative to the hot spot -> panel plane
+    auto corner = [&](F32 ix, F32 iy) { return add(add(p, mul(sR, (ix - img->hot_x) * m)), mul(sU, -(iy - img->hot_y) * m)); };
     const XrVector3f corners[4] = { corner(0.f, (F32)img->h), corner((F32)img->w, (F32)img->h), corner(0.f, 0.f),
                                     corner((F32)img->w, 0.f) };
     SavedGL saved;
@@ -1387,97 +1242,15 @@ bool PATXRUI::drawWorldPointerWith(const std::function<bool(const XrVector3f&, F
     glViewport(0, 0, width, height);
     glEnable(GL_BLEND);
     glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glBindTexture(GL_TEXTURE_2D, img->tex);
     glUniform1i(sAlphaFixLoc, 0);
     F32 clip[4][4];
-    F32 cursor_clip[4][4];
     for (U32 i = 0; i < 4; ++i)
     {
-        if (!to_clip(corners[i], cursor_clip[i]))
-        {
-            return false;
-        }
+        toClip(view, corners[i], clip[i]);
     }
-    if (sTipValid && sTipTex)
-    {
-        // tooltip: same place relative to the pointer as on the panel, at the pointer depth
-        const F32 mp = (sW / (F32)sTexW) * k;
-        auto tip = [&](F32 px, F32 py) { return add(add(q, mul(sR, (px - mx) * mp)), mul(sU, (py - my) * mp)); };
-        const F32 l = (F32)sTipX, b = (F32)sTipY, r = (F32)(sTipX + sTipW), t2 = (F32)(sTipY + sTipH);
-        const XrVector3f tc[4] = { tip(l, b), tip(r, b), tip(l, t2), tip(r, t2) };
-        bool ok = true;
-        for (U32 i = 0; i < 4 && ok; ++i)
-        {
-            ok = to_clip(tc[i], clip[i]);
-        }
-        if (ok)
-        {
-            glBindTexture(GL_TEXTURE_2D, sTipTex);
-            drawQuad(clip, FULL_UV);
-        }
-    }
-    glBindTexture(GL_TEXTURE_2D, img->tex);
-    // Diagnosis (PATVRPointerStereoColors): left eye red, right eye green.
-    static LLCachedControl<bool> stereo_colors(gSavedSettings, "PATVRPointerStereoColors", false);
-    glUniform1i(sTintLoc, (stereo_colors && eye >= 0) ? (eye == 0 ? 1 : 2) : 0);
-    drawQuad(cursor_clip, FULL_UV);
-    glUniform1i(sTintLoc, 0);
+    drawQuad(clip, FULL_UV);
     glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
-    return true;
-}
-
-void PATXRUI::drawWorldPointer(const XrView& view, GLuint texture, S32 width, S32 height, S32 eye)
-{
-    drawWorldPointerWith([&](const XrVector3f& p, F32* out) { toClip(view, p, out); return true; }, texture, width, height,
-                         eye);
-}
-
-void PATXRUI::setPointerTarget(bool on_ui, F32 dist)
-{
-    sPtrOnUI = on_ui;
-    sPtrTarget = dist;
-}
-
-void PATXRUI::logPointerPath(const XrView views[2])
-{
-    static F64 s_last = 0.0;
-    const F64 now = LLTimer::getTotalSeconds();
-    if (now - s_last < 0.5 || !hasImage() || !gViewerWindow || !gViewerWindow->getWindow())
-    {
-        return;
-    }
-    s_last = now;
-    if (pointerHidden())
-    {
-        LL_INFOS("PATXRPointer") << "pointer drawn: hidden" << LL_ENDL;
-        return;
-    }
-    XrVector3f p;
-    bool inside = false;
-    if (!pointerPanelPoint(p, inside))
-    {
-        return;
-    }
-    XrVector3f dir = sub(p, sEye);
-    const F32 panel_dist = norm(dir);
-    const bool panel = inside && sPtrOnUI;
-    const F32 depth = panel ? panel_dist : (sPtrDepth > 0.f ? sPtrDepth : panel_dist);
-    const XrVector3f q = add(sEye, mul(dir, depth));
-    F32 ang[2];
-    for (U32 i = 0; i < 2; ++i)
-    {
-        const XrVector3f e = rotate(views[i].pose.orientation, sub(q, views[i].pose.position), true);
-        ang[i] = atan2f(e.x, -e.z) * RAD_TO_DEG;
-    }
-    LL_INFOS("PATXRPointer") << llformat("pointer drawn (%s): %s @ %.2f m (target %.2f m, panel %.2f m, inside %d, on_ui %d), "
-                                         "angle L %.3f R %.3f deg, disparity %.3f deg",
-                                         PATXRStereo::pointerDrawnInEyes() ? "world pass" : "XR overlay",
-                                         panel ? "panel" : "world", depth, sPtrTarget, panel_dist, inside ? 1 : 0,
-                                         sPtrOnUI ? 1 : 0, ang[0], ang[1], ang[0] - ang[1]) << LL_ENDL;
-}
-
-bool PATXRUI::pointerVisible()
-{
-    return gViewerWindow && gViewerWindow->getWindow() && !pointerHidden();
 }
 
 F32 PATXRUI::uiScale()

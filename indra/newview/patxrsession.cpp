@@ -49,13 +49,6 @@
 #include "llviewershadermgr.h"
 #include "llnotificationsutil.h"
 #include "llstartup.h"
-#include "llfocusmgr.h"
-#include "lltoolmgr.h"
-#include "lltoolpie.h"
-#include "lltooltip.h"
-#include "llhudnametag.h"
-#include "llvoavatar.h"
-#include "llviewerobject.h"
 #include "lluictrl.h"
 #include "lltrans.h"
 #include "llviewercontrol.h"
@@ -1151,13 +1144,9 @@ namespace
                     {
                         PATXRUI::drawInEye(sXR.views[i], eye.images[index].image, eye.width, eye.height);
                     }
-                    if (ui && !(sXR.eyesRendered && PATXRStereo::pointerDrawnInEyes()))
+                    if (ui)
                     {
-                        PATXRUI::drawWorldPointer(sXR.views[i], eye.images[index].image, eye.width, eye.height, (S32)i);
-                    }
-                    if (ui && i == 1)
-                    {
-                        PATXRUI::logPointerPath(sXR.views);
+                        PATXRUI::drawWorldPointer(sXR.views[i], eye.images[index].image, eye.width, eye.height);
                     }
                     releaseImage(eye);
 
@@ -1463,21 +1452,6 @@ void PATXRSession::renderEyes()
         return;
     }
     PATXRStereo::renderEyes(sXR.views, sXR.palms);
-    // VR pointer depth: sample its ray in what the left eye just saw (same eye mapping).
-    {
-        LLVector3 dir, eye;
-        XrVector3f o, d;
-        const LLCoordGL mouse = gViewerWindow ? gViewerWindow->getCurrentMouse() : LLCoordGL();
-        if (sXR.uiActive && gViewerWindow && PATXRUI::pointerVisible() && mouseDirection(mouse.mX, mouse.mY, dir) &&
-            PATXRUI::rayRoom(0.5f, 0.5f, o, d) && PATXRStereo::roomPointToAgent(o, eye))
-        {
-            PATXRStereo::samplePointerDepth(eye, dir);
-        }
-        else
-        {
-            PATXRStereo::skipPointerDepth();
-        }
-    }
     sXR.eyesActive = false;
     sXR.eyesRendered = true;
     const F64 spent = LLTimer::getTotalSeconds() - sXR.eyesStart;
@@ -1493,12 +1467,6 @@ bool PATXRSession::drawDesktopMirror()
 bool PATXRSession::inEyes()
 {
     return PATXRStereo::inEyes();
-}
-
-void PATXRSession::nameTagDrawn(const LLVector3& origin, const LLVector3& x_axis, const LLVector3& y_axis, const LLRect& rect,
-                                F32 bg_alpha)
-{
-    PATXRStereo::nameTagDrawn(origin, x_axis, y_axis, rect, bg_alpha);
 }
 
 bool PATXRSession::pixelVectors(const LLVector3& pos_agent, LLVector3& up, LLVector3& right)
@@ -1619,118 +1587,6 @@ F32 PATXRSession::uiScale()
 bool PATXRSession::pointerBeyondWindow()
 {
     return sXR.uiActive && sVirtualPointer;
-}
-
-namespace
-{
-    // Log (PATXRPointer): where the pointer depth comes from, when it changes noticeably (at most 5 per second).
-    void logPointer(const char* source, F32 dist, const LLCoordGL& mouse)
-    {
-        static const char* s_last_source = nullptr;
-        static F32 s_last_dist = 0.f;
-        static F64 s_last_log = 0.0;
-        const F64 now = LLTimer::getTotalSeconds();
-        const bool source_changed = source != s_last_source;
-        const bool changed = source_changed || (dist > 0.f) != (s_last_dist > 0.f) ||
-                             (dist > 0.f && fabsf(dist - s_last_dist) > 0.1f * llmax(dist, s_last_dist));
-        if (changed && now - s_last_log > (source_changed ? 0.1 : 0.2))
-        {
-            s_last_log = now;
-            s_last_source = source;
-            s_last_dist = dist;
-            const std::string extra = strcmp(source, "tag") == 0 ? ", " + PATXRStereo::lastTagPlate(dist) : std::string();
-            LL_INFOS("PATXRPointer") << llformat("pointer depth from %s: %.2f m (mouse %d,%d)", source, dist, mouse.mX, mouse.mY)
-                                     << extra << LL_ENDL;
-        }
-    }
-}
-
-void PATXRSession::pointerHover(bool over_ui)
-{
-    if (!sXR.uiActive || !gViewerWindow || !PATXRUI::pointerVisible())
-    {
-        return;
-    }
-    const LLCoordGL mouse = gViewerWindow->getCurrentMouse();
-    const bool beyond = mouse.mX < 0 || mouse.mY < 0 || mouse.mX >= gViewerWindow->getWindowWidthScaled() ||
-                        mouse.mY >= gViewerWindow->getWindowHeightScaled();
-    // A tooltip under the pointer (hover tips over avatars and objects take the
-    // hover) is not UI on the panel: over the world it goes to the pointer depth.
-    if (over_ui && LLToolTipMgr::instance().toolTipVisible() &&
-        LLToolTipMgr::instance().getToolTipRect().pointInRect(mouse.mX, mouse.mY))
-    {
-        over_ui = false;
-    }
-    if (over_ui && !beyond)
-    {
-        PATXRUI::setPointerTarget(true, 0.f);
-        logPointer("ui", 0.f, mouse);
-        return;
-    }
-
-    // HUD attachments are on the panel: the hover pick of the pointer tool says
-    // so (it ran just now); other tools (build, grab, mouselook): an own pick
-    // that touches nothing (no mLastPick, no callback), when the pointer moved
-    // and every 3rd frame otherwise. It is also the fallback depth before the
-    // first depth sample.
-    static LLPickInfo s_pick;
-    static LLCoordGL s_pick_mouse(-99999, -99999);
-    static U32 s_frames = 0;
-    LLToolPie* pie = LLToolPie::getInstance();
-    const LLPickInfo* pick = nullptr;
-    if (!over_ui && !gFocusMgr.getMouseCapture() && LLToolMgr::getInstance()->getCurrentTool() == pie &&
-        pie->getHoverPick().mMousePt == mouse)
-    {
-        pick = &pie->getHoverPick();
-    }
-    else
-    {
-        if (!(s_pick_mouse == mouse) || ++s_frames >= 3)
-        {
-            s_frames = 0;
-            s_pick_mouse = mouse;
-            s_pick = LLPickInfo(mouse, gKeyboard ? gKeyboard->currentMask(true) : MASK_NONE, false, false, false, false,
-                                false, false, nullptr);
-            s_pick.fetchResults();
-        }
-        pick = &s_pick;
-    }
-    if (pick->mPickHUD && !beyond)
-    {
-        PATXRUI::setPointerTarget(true, 0.f);
-        logPointer("hud", 0.f, mouse);
-        return;
-    }
-
-    LLVector3 dir, eye;
-    XrVector3f o, d;
-    if (!mouseDirection(mouse.mX, mouse.mY, dir) || !PATXRUI::rayRoom(0.5f, 0.5f, o, d) ||
-        !PATXRStereo::roomPointToAgent(o, eye))
-    {
-        return;
-    }
-    // The depth is what the eyes see along the pointer ray in the last eye
-    // frame: its depth buffer (mesh bodies, alpha-textured walls, click-through
-    // objects alike) and the name tag plates drawn in that frame (they write no
-    // depth), both from the same frame, the same for both eyes.
-    F32 dist = -1.f;
-    bool from_tag = false;
-    const char* source = "seen";
-    if (PATXRStereo::pointerDepth(dist, from_tag))
-    {
-        source = from_tag ? "tag" : "seen";
-    }
-    else
-    {
-        source = "pick";
-        dist = -1.f;
-        if (pick->mPickType != LLPickInfo::PICK_INVALID && !pick->mPosGlobal.isExactlyZero())
-        {
-            dist = (gAgent.getPosAgentFromGlobal(pick->mPosGlobal) - eye) * dir;
-        }
-    }
-    PATXRUI::setPointerTarget(false, dist);
-    logPointer(source, dist, mouse);
 }
 
 bool PATXRSession::uiHidden()
@@ -1862,10 +1718,6 @@ bool PATXRSession::inEyes()
     return false;
 }
 
-void PATXRSession::nameTagDrawn(const LLVector3&, const LLVector3&, const LLVector3&, const LLRect&, F32)
-{
-}
-
 bool PATXRSession::pixelVectors(const LLVector3&, LLVector3&, LLVector3&)
 {
     return false;
@@ -1920,10 +1772,6 @@ F32 PATXRSession::uiScale()
 bool PATXRSession::pointerBeyondWindow()
 {
     return false;
-}
-
-void PATXRSession::pointerHover(bool)
-{
 }
 
 bool PATXRSession::uiHidden()

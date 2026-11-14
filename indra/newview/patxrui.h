@@ -27,8 +27,6 @@
 
 #include <openxr/openxr.h>
 
-#include <functional>
-
 // How the UI gets into the headset:
 //
 //  render_ui() (Firestorm)                      PATXRUI
@@ -102,25 +100,7 @@ namespace PATXRUI
     bool pointerCamera(XrVector3f& origin, XrVector3f& at, XrVector3f& up, F32& vfov, F32& aspect, F32& ndc_x, F32& ndc_y);
     // Pointer outside the panel (virtual pointer beyond the window): drawn into
     // the eye image on the plane of the panel, so the move panel <-> world is seamless.
-    // eye: 0 left, 1 right (diagnosis colours PATVRPointerStereoColors), -1 unknown.
-    void drawWorldPointer(const XrView& view, GLuint texture, S32 width, S32 height, S32 eye);
-    // Same, with any camera: to_clip maps a LOCAL point to clip space (false: not
-    // possible). PATXRStereo draws it this way in each eye's world pass, with the
-    // very matrices the world was rendered with. True when drawn.
-    bool drawWorldPointerWith(const std::function<bool(const XrVector3f&, F32*)>& to_clip, GLuint texture, S32 width,
-                              S32 height, S32 eye);
-    // Depth of the pointer, from the hover in LLViewerWindow::updateUI() (PATXRSession::pointerHover):
-    // on_ui = over a UI element (HUDs included) on the panel, drawn into the panel; otherwise drawn
-    // into the eye images at dist = metres from the eye centre along the pointer ray to what it
-    // points at (<= 0: nothing hit, the sky). Stereo-correct, so the eyes need not converge on the
-    // panel plane while looking at a near object; depth changes at once (no smoothing).
-    void setPointerTarget(bool on_ui, F32 dist);
-    // Log (PATXRPointer, at most 2 per second): which path drew the pointer this
-    // frame (panel / world) and at which depth, with the angle of its hot spot in
-    // each eye and the resulting disparity.
-    void logPointerPath(const XrView views[2]);
-    // The pointer is shown (not hidden by mouselook / camera steering).
-    bool pointerVisible();
+    void drawWorldPointer(const XrView& view, GLuint texture, S32 width, S32 height);
 
     // UI scale while the UI is on the panel (1 otherwise).
     F32 uiScale();
