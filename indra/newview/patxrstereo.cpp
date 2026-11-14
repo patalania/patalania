@@ -31,6 +31,7 @@
 #if PAT_XR
 
 #include "patxrstereo.h"
+#include "patxrui.h"
 #include "patxrkeyboard.h"
 
 #include "llagent.h"
@@ -157,6 +158,7 @@ namespace
     U32 sDepthSlot = 0;
     bool sDepthValid = false;
     F32 sDepthDist = -1.f;
+    bool sPointerInEyes = false;   // the pointer was drawn in the world pass of this frame
     bool sHaveTagFrame = false;      // name tag geometry of the last rendered eye (pick)
     LLVector3 sTagHead;              // head centre of that eye frame (agent)
     F32 sTagPixelScale = 0.f;        // tan(vfov/2) / (eye height in pixels / 2)
@@ -372,6 +374,32 @@ namespace
         gGL.flush();
         cam.setAxes(sEyeAt[eye], sEyeLeft[eye], sEyeUp[eye]);
 
+        // The VR pointer over the world, with exactly the camera this eye's world
+        // was rendered with (above everything, as before). Off: drawn by the XR
+        // overlay path onto the finished eye images (PATXRUI::drawWorldPointer).
+        static LLCachedControl<bool> pointer_in_world(gSavedSettings, "PATVRPointerInWorldPass", true);
+        if (pointer_in_world)
+        {
+            const glm::mat4 pv = sProj[eye] * sView[eye];
+            const bool drawn = PATXRUI::drawWorldPointerWith(
+                [&](const XrVector3f& p, F32* out)
+                {
+                    LLVector3 a;
+                    if (!PATXRStereo::roomPointToAgent(p, a))
+                    {
+                        return false;
+                    }
+                    const glm::vec4 c = pv * glm::vec4(a.mV[VX], a.mV[VY], a.mV[VZ], 1.f);
+                    out[0] = c.x;
+                    out[1] = c.y;
+                    out[2] = c.z;
+                    out[3] = c.w;
+                    return true;
+                },
+                rt.getTexture(), sW, sH);
+            sPointerInEyes = sPointerInEyes || drawn; // (framebuffer, viewport and GL state restored by PATXRUI)
+        }
+
         forceOpaqueAlpha();
         PATXRKeyboard::draw(view, palms);
         rt.flush();
@@ -460,6 +488,7 @@ void PATXRStereo::resetReference()
 
 bool PATXRStereo::beginEyes(const XrView views[2])
 {
+    sPointerInEyes = false;
     if (!sInitialised || sInEyes || gSnapshot || gCubeSnapshot || !gViewerWindow)
     {
         return false;
@@ -575,6 +604,28 @@ bool PATXRStereo::beginEyes(const XrView views[2])
         tr = llmax(tr, tanf(fov.angleRight));
         td = llmin(td, tanf(fov.angleDown));
         tu = llmax(tu, tanf(fov.angleUp));
+    }
+
+    // Log (PATXRPointer, every 5 s): world eye cameras against the XR views.
+    {
+        static F64 s_last = 0.0;
+        const F64 now = LLTimer::getTotalSeconds();
+        if (now - s_last > 5.0)
+        {
+            s_last = now;
+            const XrVector3f& a = views[0].pose.position;
+            const XrVector3f& b = views[1].pose.position;
+            const F32 xr_ipd = sqrtf((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y) + (a.z - b.z) * (a.z - b.z));
+            LL_INFOS("PATXRPointer") << llformat("eyes: world separation %.4f m, XR IPD %.4f m, eye axes angle %.3f deg, "
+                                                 "fov L %.1f/%.1f/%.1f/%.1f R %.1f/%.1f/%.1f/%.1f deg, image %dx%d",
+                                                 dist_vec(sEyeOrigin[0], sEyeOrigin[1]), xr_ipd,
+                                                 acosf(llclamp(sEyeAt[0] * sEyeAt[1], -1.f, 1.f)) * RAD_TO_DEG,
+                                                 views[0].fov.angleLeft * RAD_TO_DEG, views[0].fov.angleRight * RAD_TO_DEG,
+                                                 views[0].fov.angleDown * RAD_TO_DEG, views[0].fov.angleUp * RAD_TO_DEG,
+                                                 views[1].fov.angleLeft * RAD_TO_DEG, views[1].fov.angleRight * RAD_TO_DEG,
+                                                 views[1].fov.angleDown * RAD_TO_DEG, views[1].fov.angleUp * RAD_TO_DEG,
+                                                 sW, sH) << LL_ENDL;
+        }
     }
 
     if (tr - tl > 0.01f && tu - td > 0.01f)
@@ -1162,6 +1213,11 @@ void PATXRStereo::samplePointerDepth(const LLVector3& origin, const LLVector3& d
 void PATXRStereo::skipPointerDepth()
 {
     sDepthValid = false;
+}
+
+bool PATXRStereo::pointerDrawnInEyes()
+{
+    return sPointerInEyes;
 }
 
 bool PATXRStereo::pointerDepth(F32& dist)

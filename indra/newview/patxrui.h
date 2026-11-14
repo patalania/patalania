@@ -27,6 +27,8 @@
 
 #include <openxr/openxr.h>
 
+#include <functional>
+
 // How the UI gets into the headset:
 //
 //  render_ui() (Firestorm)                      PATXRUI
@@ -101,6 +103,11 @@ namespace PATXRUI
     // Pointer outside the panel (virtual pointer beyond the window): drawn into
     // the eye image on the plane of the panel, so the move panel <-> world is seamless.
     void drawWorldPointer(const XrView& view, GLuint texture, S32 width, S32 height);
+    // Same, with any camera: to_clip maps a LOCAL point to clip space (false: not
+    // possible). PATXRStereo draws it this way in each eye's world pass, with the
+    // very matrices the world was rendered with. True when drawn.
+    bool drawWorldPointerWith(const std::function<bool(const XrVector3f&, F32*)>& to_clip, GLuint texture, S32 width,
+                              S32 height);
     // Depth of the pointer, from the hover in LLViewerWindow::updateUI() (PATXRSession::pointerHover):
     // on_ui = over a UI element (HUDs included) on the panel, drawn into the panel; otherwise drawn
     // into the eye images at dist = metres from the eye centre along the pointer ray to what it

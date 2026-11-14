@@ -49,6 +49,7 @@
 #include "pipeline.h"
 
 #include <cmath>
+#include <functional>
 
 namespace
 {
@@ -1333,23 +1334,24 @@ bool PATXRUI::pointerCamera(XrVector3f& origin, XrVector3f& at, XrVector3f& up, 
     return true;
 }
 
-void PATXRUI::drawWorldPointer(const XrView& view, GLuint texture, S32 width, S32 height)
+bool PATXRUI::drawWorldPointerWith(const std::function<bool(const XrVector3f&, F32*)>& to_clip, GLuint texture, S32 width,
+                                   S32 height)
 {
     if (!hasImage() || !gViewerWindow || !gViewerWindow->getWindow() || pointerHidden() || sTexW <= 0)
     {
-        return;
+        return false;
     }
     XrVector3f p;
     bool inside = false;
     F32 mx = 0.f, my = 0.f;
     if (!pointerPanelPoint(p, inside, &mx, &my) || (inside && sPtrOnUI))
     {
-        return; // over the UI: drawn into the panel texture
+        return false; // over the UI: drawn into the panel texture
     }
     CursorImage* img = cursorImage(gViewerWindow->getWindow()->getCursor());
     if (!img)
     {
-        return;
+        return false;
     }
     // Along the ray from the eye centre through the panel point (the click ray),
     // at the depth of what it points at; parallel to the panel, same angular size.
@@ -1374,6 +1376,14 @@ void PATXRUI::drawWorldPointer(const XrView& view, GLuint texture, S32 width, S3
     glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glUniform1i(sAlphaFixLoc, 0);
     F32 clip[4][4];
+    F32 cursor_clip[4][4];
+    for (U32 i = 0; i < 4; ++i)
+    {
+        if (!to_clip(corners[i], cursor_clip[i]))
+        {
+            return false;
+        }
+    }
     if (sTipValid && sTipTex)
     {
         // tooltip: same place relative to the pointer as on the panel, at the pointer depth
@@ -1381,20 +1391,26 @@ void PATXRUI::drawWorldPointer(const XrView& view, GLuint texture, S32 width, S3
         auto tip = [&](F32 px, F32 py) { return add(add(q, mul(sR, (px - mx) * mp)), mul(sU, (py - my) * mp)); };
         const F32 l = (F32)sTipX, b = (F32)sTipY, r = (F32)(sTipX + sTipW), t2 = (F32)(sTipY + sTipH);
         const XrVector3f tc[4] = { tip(l, b), tip(r, b), tip(l, t2), tip(r, t2) };
-        for (U32 i = 0; i < 4; ++i)
+        bool ok = true;
+        for (U32 i = 0; i < 4 && ok; ++i)
         {
-            toClip(view, tc[i], clip[i]);
+            ok = to_clip(tc[i], clip[i]);
         }
-        glBindTexture(GL_TEXTURE_2D, sTipTex);
-        drawQuad(clip, FULL_UV);
+        if (ok)
+        {
+            glBindTexture(GL_TEXTURE_2D, sTipTex);
+            drawQuad(clip, FULL_UV);
+        }
     }
     glBindTexture(GL_TEXTURE_2D, img->tex);
-    for (U32 i = 0; i < 4; ++i)
-    {
-        toClip(view, corners[i], clip[i]);
-    }
-    drawQuad(clip, FULL_UV);
+    drawQuad(cursor_clip, FULL_UV);
     glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+    return true;
+}
+
+void PATXRUI::drawWorldPointer(const XrView& view, GLuint texture, S32 width, S32 height)
+{
+    drawWorldPointerWith([&](const XrVector3f& p, F32* out) { toClip(view, p, out); return true; }, texture, width, height);
 }
 
 void PATXRUI::setPointerTarget(bool on_ui, F32 dist)
@@ -1434,8 +1450,9 @@ void PATXRUI::logPointerPath(const XrView views[2])
         const XrVector3f e = rotate(views[i].pose.orientation, sub(q, views[i].pose.position), true);
         ang[i] = atan2f(e.x, -e.z) * RAD_TO_DEG;
     }
-    LL_INFOS("PATXRPointer") << llformat("pointer drawn: %s @ %.2f m (target %.2f m, panel %.2f m, inside %d, on_ui %d), "
+    LL_INFOS("PATXRPointer") << llformat("pointer drawn (%s): %s @ %.2f m (target %.2f m, panel %.2f m, inside %d, on_ui %d), "
                                          "angle L %.3f R %.3f deg, disparity %.3f deg",
+                                         PATXRStereo::pointerDrawnInEyes() ? "world pass" : "XR overlay",
                                          panel ? "panel" : "world", depth, sPtrTarget, panel_dist, inside ? 1 : 0,
                                          sPtrOnUI ? 1 : 0, ang[0], ang[1], ang[0] - ang[1]) << LL_ENDL;
 }

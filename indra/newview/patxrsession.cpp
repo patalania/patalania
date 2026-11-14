@@ -1151,7 +1151,7 @@ namespace
                     {
                         PATXRUI::drawInEye(sXR.views[i], eye.images[index].image, eye.width, eye.height);
                     }
-                    if (ui)
+                    if (ui && !(sXR.eyesRendered && PATXRStereo::pointerDrawnInEyes()))
                     {
                         PATXRUI::drawWorldPointer(sXR.views[i], eye.images[index].image, eye.width, eye.height);
                     }

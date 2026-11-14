@@ -122,6 +122,9 @@ namespace PATXRStereo
     // pick considers pickable (alpha textures, click-through objects).
     void samplePointerDepth(const LLVector3& origin, const LLVector3& dir);
     void skipPointerDepth();
+    // The VR pointer over the world went into the eye images of this frame in
+    // the world pass (setting PATVRPointerInWorldPass): no overlay on top then.
+    bool pointerDrawnInEyes();
     bool pointerDepth(F32& dist);
 
     // Copy eye 'eye' into an OpenXR swapchain image (GL texture) of the same size.
