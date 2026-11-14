@@ -722,6 +722,52 @@ Image quality (takes effect at the next VR start)
   width="500"
   tool_tip="Every second headset frame repeats the last image; the headset smooths the motion."
   name="vr_half" />
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="188"
+  height="16"
+  width="500"
+  font="SansSerifBold"
+  name="hd_pointer">
+Pointer
+ </text>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRPointerNearDistance"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.05"
+  initial_value="0.3"
+  label="Pointer follows very near objects (m)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="210"
+  max_val="1.0"
+  min_val="0.0"
+  show_text="true"
+  width="478"
+  tool_tip="Closer than this, the pointer is drawn at the depth of what it points at (0 = off)."
+  name="vr_ptr_near" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Reset to the default value."
+  name="def_vr_ptr_near">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRPointerNearDistance" />
+ </button>
 </panel>
 <panel
  border="false"

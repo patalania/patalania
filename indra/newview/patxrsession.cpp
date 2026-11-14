@@ -49,6 +49,9 @@
 #include "llviewershadermgr.h"
 #include "llnotificationsutil.h"
 #include "llstartup.h"
+#include "llfocusmgr.h"
+#include "lltoolmgr.h"
+#include "lltoolpie.h"
 #include "lluictrl.h"
 #include "lltrans.h"
 #include "llviewercontrol.h"
@@ -256,6 +259,39 @@ namespace
     };
 
     XRState sXR;
+
+    bool sWorldHovered = false; // since the last frame (PATXRSession::worldHovered)
+
+    // PATVRPointerNearDistance: is the thing under the pointer very near? Each
+    // frame, from the hover pick of the pointer tool (same ray as the clicks),
+    // only when the world had the hover; no smoothing.
+    void updatePointerNear()
+    {
+        F32 near = -1.f;
+        static LLCachedControl<F32> near_dist(gSavedSettings, "PATVRPointerNearDistance", 0.3f);
+        const F32 limit = llclamp((F32)near_dist, 0.f, 1.f);
+        LLToolPie* pie = LLToolPie::getInstance();
+        if (limit > 0.f && sWorldHovered && gViewerWindow && !gFocusMgr.getMouseCapture() &&
+            LLToolMgr::getInstance()->getCurrentTool() == pie)
+        {
+            const LLPickInfo& pick = pie->getHoverPick();
+            const LLCoordGL mouse = gViewerWindow->getCurrentMouse();
+            LLVector3 dir, eye;
+            XrVector3f o, d;
+            if (pick.mMousePt == mouse && !pick.mPickHUD && pick.mPickType != LLPickInfo::PICK_INVALID &&
+                !pick.mPosGlobal.isExactlyZero() && PATXRSession::mouseDirection(mouse.mX, mouse.mY, dir) &&
+                PATXRUI::rayRoom(0.5f, 0.5f, o, d) && PATXRStereo::roomPointToAgent(o, eye))
+            {
+                const F32 dist = (gAgent.getPosAgentFromGlobal(pick.mPosGlobal) - eye) * dir;
+                if (dist > 0.f && dist < limit)
+                {
+                    near = dist;
+                }
+            }
+        }
+        sWorldHovered = false;
+        PATXRUI::setPointerNear(near);
+    }
 
     std::string resultString(XrResult result)
     {
@@ -1113,6 +1149,7 @@ namespace
                 const bool ui_quad = ui && PATXRUI::useQuadLayer();
                 if (ui)
                 {
+                    updatePointerNear();
                     PATXRUI::prepare();
                 }
 
@@ -1589,6 +1626,11 @@ bool PATXRSession::pointerBeyondWindow()
     return sXR.uiActive && sVirtualPointer;
 }
 
+void PATXRSession::worldHovered()
+{
+    sWorldHovered = true;
+}
+
 bool PATXRSession::uiHidden()
 {
     return sXR.uiActive && PATXRUI::isHidden();
@@ -1772,6 +1814,10 @@ F32 PATXRSession::uiScale()
 bool PATXRSession::pointerBeyondWindow()
 {
     return false;
+}
+
+void PATXRSession::worldHovered()
+{
 }
 
 bool PATXRSession::uiHidden()

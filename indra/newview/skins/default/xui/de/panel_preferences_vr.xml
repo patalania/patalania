@@ -722,6 +722,52 @@ Bildqualität (wirkt beim nächsten VR-Start)
   width="500"
   tool_tip="Jedes zweite Brillenbild wiederholt das letzte Bild; die Brille glättet die Bewegung."
   name="vr_half" />
+ <text
+  type="string"
+  length="1"
+  follows="left|top"
+  layout="topleft"
+  left="12"
+  top="188"
+  height="16"
+  width="500"
+  font="SansSerifBold"
+  name="hd_pointer">
+Zeiger
+ </text>
+ <slider
+  can_edit_text="true"
+  control_name="PATVRPointerNearDistance"
+  decimal_digits="2"
+  follows="left|top"
+  height="16"
+  increment="0.05"
+  initial_value="0.3"
+  label="Zeiger folgt sehr nahen Objekten (m)"
+  label_width="200"
+  layout="topleft"
+  left="12"
+  top="210"
+  max_val="1.0"
+  min_val="0.0"
+  show_text="true"
+  width="478"
+  tool_tip="Näher als dieser Abstand wird der Zeiger in der Tiefe dessen gezeichnet, worauf er zeigt (0 = aus)."
+  name="vr_ptr_near" />
+ <button
+  follows="left|top"
+  height="17"
+  label="D"
+  layout="topleft"
+  left_pad="3"
+  top_delta="0"
+  width="17"
+  tool_tip="Auf den Standardwert zurücksetzen."
+  name="def_vr_ptr_near">
+  <button.commit_callback
+   function="ResetControl"
+   parameter="PATVRPointerNearDistance" />
+ </button>
 </panel>
 <panel
  border="false"

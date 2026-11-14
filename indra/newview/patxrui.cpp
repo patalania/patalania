@@ -184,6 +184,7 @@ namespace
     bool sFollowing = false;
     // Ctrl+Shift+Space: whole UI (floaters, menus, HUDs) hidden; the pointer stays for world clicks.
     bool sHidden = false;
+    F32 sPtrNear = -1.f;        // PATXRUI::setPointerNear
     bool sSavedUIVisible = true;
     bool sSavedHUDs = true;
 
@@ -570,6 +571,10 @@ namespace
         if (mx < 0.f || my < 0.f || mx >= (F32)sTexW || my >= (F32)sTexH)
         {
             return; // beyond the panel: drawn in the world (drawWorldPointer)
+        }
+        if (sPtrNear > 0.f)
+        {
+            return; // very near object: drawn at its depth (drawWorldPointer)
         }
         static LLCachedControl<F32> cursor_scale(gSavedSettings, "PATVRCursorScale", 1.f);
         const F32 s = llclamp((F32)cursor_scale, 0.25f, 4.f) * llmax(1.f, scale.mV[VX]);
@@ -1217,7 +1222,8 @@ void PATXRUI::drawWorldPointer(const XrView& view, GLuint texture, S32 width, S3
     const LLCoordGL mouse = gViewerWindow->getCurrentMouse();
     const F32 mx = (F32)mouse.mX * scale.mV[VX];
     const F32 my = (F32)mouse.mY * scale.mV[VY];
-    if (mx >= 0.f && my >= 0.f && mx < (F32)sTexW && my < (F32)sTexH)
+    const bool near = sPtrNear > 0.f;
+    if (!near && mx >= 0.f && my >= 0.f && mx < (F32)sTexW && my < (F32)sTexH)
     {
         return; // on the panel: drawn into the panel texture
     }
@@ -1226,10 +1232,16 @@ void PATXRUI::drawWorldPointer(const XrView& view, GLuint texture, S32 width, S3
     {
         return;
     }
-    const XrVector3f p = add(add(sC, mul(sR, (mx / sTexW - 0.5f) * sW)), mul(sU, (my / sTexH - 0.5f) * sH));
+    XrVector3f p = add(add(sC, mul(sR, (mx / sTexW - 0.5f) * sW)), mul(sU, (my / sTexH - 0.5f) * sH));
     const F32 t = llmax(0.05f, dot(sub(sEye, sC), sN));
     XrVector3f to_p = sub(p, sEye);
-    const F32 k = norm(to_p) / t; // same angular size as on the panel
+    F32 dist = norm(to_p);
+    if (near)
+    {
+        dist = sPtrNear; // along the same ray, at the near object's depth
+        p = add(sEye, mul(to_p, dist));
+    }
+    const F32 k = dist / t; // same angular size as on the panel
     static LLCachedControl<F32> cursor_scale(gSavedSettings, "PATVRCursorScale", 1.f);
     const F32 m = (sW / (F32)sTexW) * k * llclamp((F32)cursor_scale, 0.25f, 4.f) * llmax(1.f, scale.mV[VX]);
     // image pixel (x right, y down) relative to the hot spot -> panel plane
@@ -1251,6 +1263,11 @@ void PATXRUI::drawWorldPointer(const XrView& view, GLuint texture, S32 width, S3
     }
     drawQuad(clip, FULL_UV);
     glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+}
+
+void PATXRUI::setPointerNear(F32 dist)
+{
+    sPtrNear = dist;
 }
 
 F32 PATXRUI::uiScale()

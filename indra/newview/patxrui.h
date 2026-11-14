@@ -101,6 +101,11 @@ namespace PATXRUI
     // Pointer outside the panel (virtual pointer beyond the window): drawn into
     // the eye image on the plane of the panel, so the move panel <-> world is seamless.
     void drawWorldPointer(const XrView& view, GLuint texture, S32 width, S32 height);
+    // Very near object under the pointer (PATVRPointerNearDistance): dist = metres
+    // from the eye centre along the pointer ray, <= 0 = none. Then the pointer is
+    // drawn at that depth (into the eye images, same angular size) instead of on
+    // the panel plane, so the eyes need not converge on the panel right in front of a face.
+    void setPointerNear(F32 dist);
 
     // UI scale while the UI is on the panel (1 otherwise).
     F32 uiScale();

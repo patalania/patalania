@@ -27299,6 +27299,17 @@ Change of this parameter will affect the layout of buttons in notification toast
       <key>Value</key>
       <real>0.35</real>
     </map>
+    <key>PATVRPointerNearDistance</key>
+    <map>
+      <key>Comment</key>
+      <string>&lt;PAT:XR&gt; VR: when the thing under the pointer is closer to the eyes than this (m), the pointer is drawn at its depth instead of on the plane of the UI panel (0 = off, at most 1).</string>
+      <key>Persist</key>
+      <integer>1</integer>
+      <key>Type</key>
+      <string>F32</string>
+      <key>Value</key>
+      <real>0.3</real>
+    </map>
     <key>PATVRPointerReach</key>
     <map>
       <key>Comment</key>

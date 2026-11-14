@@ -4158,6 +4158,7 @@ void LLViewerWindow::updateUI()
                 if(mMouseInWindow && tool)
                 {
                     handled = tool->handleHover(x, y, mask);
+                    PATXRSession::worldHovered(); // <PAT:XR/> VR: pointer depth near objects
                 }
             }
         }
@@ -4261,6 +4262,7 @@ void LLViewerWindow::updateUI()
         if(mMouseInWindow && tool)
         {
             handled = tool->handleHover(x, y, mask);
+            PATXRSession::worldHovered(); // <PAT:XR/>
         }
     }
 
