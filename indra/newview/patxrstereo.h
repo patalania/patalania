@@ -77,6 +77,8 @@ namespace PATXRStereo
 
     // Billboard axes (see PATXRSession::pixelVectors).
     bool pixelVectors(const LLVector3& pos_agent, LLVector3& up, LLVector3& right);
+    // Same axes between frames, from the last eye frame (see PATXRSession::nameTagPickVectors).
+    bool tagPickVectors(const LLVector3& pos_agent, LLVector3& up, LLVector3& right);
 
     // Floating text as an upright plane in the world (see PATXRSession::drawHudText).
     bool drawHudText(const LLWString& text, const LLVector3& pos_agent, const LLVector3& right_axis,

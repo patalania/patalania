@@ -71,6 +71,11 @@ public:
     // tags, hover text) are upright and face the head centre, the same for both
     // eyes. Returns false outside VR.
     static bool pixelVectors(const LLVector3& pos_agent, LLVector3& up, LLVector3& right);
+    // LLHUDNameTag::lineSegmentIntersect(): the VR pointer ray tests the name
+    // tag plate where the eyes drew it (anchor in the world, upright, facing the
+    // head centre, distance scaling) instead of the desktop screen rectangle.
+    // Returns false outside VR (desktop pick unchanged).
+    static bool nameTagPickVectors(const LLVector3& pos_agent, LLVector3& up, LLVector3& right);
     static bool drawHudText(const LLWString& text, const LLVector3& pos_agent, const LLVector3& right_axis,
                             const LLVector3& up_axis, const LLFontGL& font, U8 style, S32 shadow, const LLColor4& color);
 

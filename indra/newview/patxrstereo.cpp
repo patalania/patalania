@@ -138,6 +138,9 @@ namespace
     F32 sEyeTan[2][4] = {};          // per eye: left, right, down, up
     F32 sUnionTan[4] = { -1.f, 1.f, -1.f, 1.f };
     bool sHaveOverlayFrame = false;  // eye frame for the overlay pick (last rendered frame)
+    bool sHaveTagFrame = false;      // name tag geometry of the last rendered eye (pick)
+    LLVector3 sTagHead;              // head centre of that eye frame (agent)
+    F32 sTagPixelScale = 0.f;        // tan(vfov/2) / (eye height in pixels / 2)
     S32 sCurEye = -1;                // eye being finished (finishEye)
     bool sMirrorShown = false;       // desktop shows the left eye this frame
 
@@ -649,6 +652,13 @@ bool PATXRStereo::inEyes()
     return sInEyes;
 }
 
+namespace
+{
+    // Billboard axes facing 'head' with 'pixel_scale' = tan(vfov/2) / (eye height
+    // in pixels / 2): the rule used for drawing in the eyes and for picking.
+    void tagVectors(const LLVector3& pos_agent, const LLVector3& head, F32 pixel_scale, LLVector3& up, LLVector3& right);
+}
+
 bool PATXRStereo::pixelVectors(const LLVector3& pos_agent, LLVector3& up, LLVector3& right)
 {
     if (!sInEyes)
@@ -657,7 +667,29 @@ bool PATXRStereo::pixelVectors(const LLVector3& pos_agent, LLVector3& up, LLVect
     }
     // Face the head centre (not the eye, not the viewing direction): turning the
     // head on the spot changes nothing, both eyes see the same plane.
-    const LLVector3 head = (sEyeOrigin[0] + sEyeOrigin[1]) * 0.5f;
+    const LLViewerCamera& cam = LLViewerCamera::instance();
+    sTagHead = (sEyeOrigin[0] + sEyeOrigin[1]) * 0.5f;
+    sTagPixelScale = tanf(cam.getView() * 0.5f) / llmax(1.f, cam.getViewHeightInPixels() * 0.5f);
+    sHaveTagFrame = true;
+    tagVectors(pos_agent, sTagHead, sTagPixelScale, up, right);
+    return true;
+}
+
+bool PATXRStereo::tagPickVectors(const LLVector3& pos_agent, LLVector3& up, LLVector3& right)
+{
+    // Between frames (VR pointer ray): the plate as the last eye frame drew it.
+    if (sInEyes || !sInitialised || !sHaveTagFrame)
+    {
+        return false;
+    }
+    tagVectors(pos_agent, sTagHead, sTagPixelScale, up, right);
+    return true;
+}
+
+namespace
+{
+void tagVectors(const LLVector3& pos_agent, const LLVector3& head, F32 pixel_scale, LLVector3& up, LLVector3& right)
+{
     const LLVector3 d = pos_agent - head;
     LLVector3 flat(d.mV[VX], d.mV[VY], 0.f);
     if (flat.normVec() < 0.01f)
@@ -673,10 +705,8 @@ bool PATXRStereo::pixelVectors(const LLVector3& pos_agent, LLVector3& up, LLVect
 
     // Same pixel size rule as LLViewerCamera::getPixelVectors, with the distance
     // to the head centre.
-    const LLViewerCamera& cam = LLViewerCamera::instance();
     const F32 distance = d.magVec();
-    const F32 height_meters = distance * tanf(cam.getView() * 0.5f);
-    F32 meters_per_pixel = height_meters / llmax(1.f, cam.getViewHeightInPixels() * 0.5f);
+    F32 meters_per_pixel = distance * pixel_scale;
     // Phase 8 (user test): beyond a distance the tags keep their size in the
     // world, so they get smaller with distance like everything else, down to a
     // minimum share of the screen size so they stay readable at medium range.
@@ -689,7 +719,7 @@ bool PATXRStereo::pixelVectors(const LLVector3& pos_agent, LLVector3& up, LLVect
     }
     up = LLVector3::z_axis * meters_per_pixel * gViewerWindow->getDisplayScale().mV[VY];
     right = right_dir * meters_per_pixel * gViewerWindow->getDisplayScale().mV[VX];
-    return true;
+}
 }
 
 bool PATXRStereo::drawHudText(const LLWString& text, const LLVector3& pos_agent, const LLVector3& right_axis,
@@ -1037,6 +1067,7 @@ void PATXRStereo::release(bool viewer_shutdown)
     sMirrorPending = false;
     sMirrorShown = false;
     sHaveOverlayFrame = false;
+    sHaveTagFrame = false;
     sCurEye = -1;
     for (LLRenderTarget& rt : sEyeRT)
     {

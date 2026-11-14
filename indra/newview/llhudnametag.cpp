@@ -149,7 +149,11 @@ bool LLHUDNameTag::lineSegmentIntersect(const LLVector4a& start, const LLVector4
 
     LLVector3 position = mPositionAgent;
 
-    if (mSourceObject)
+    LLVector3 x_pixel_vec;
+    LLVector3 y_pixel_vec;
+    const bool pat_vr = PATXRSession::nameTagPickVectors(position, y_pixel_vec, x_pixel_vec); // <PAT:XR/> VR pointer ray: plate as drawn in the eyes
+
+    if (mSourceObject && !pat_vr) // <PAT:XR/> VR: plate already at the avatar's depth
     { //get intersection of eye through mPositionAgent to plane of source object
         //using this position keeps the camera from focusing on some seemingly random
         //point several meters in front of the nametag
@@ -168,9 +172,7 @@ bool LLHUDNameTag::lineSegmentIntersect(const LLVector4a& start, const LLVector4
 
     // scale screen size of borders down
 
-    LLVector3 x_pixel_vec;
-    LLVector3 y_pixel_vec;
-
+    if (!pat_vr) // <PAT:XR/>
     LLViewerCamera::getInstance()->getPixelVectors(position, y_pixel_vec, x_pixel_vec);
 
     LLVector3 width_vec = mWidth * x_pixel_vec;
@@ -180,7 +182,7 @@ bool LLHUDNameTag::lineSegmentIntersect(const LLVector4a& start, const LLVector4
     LLViewerCamera::getInstance()->projectPosAgentToScreen(position, screen_pos, false);
 
     LLVector2 screen_offset;
-    screen_offset = PATXRSession::inEyes() ? LLVector2::zero : updateScreenPos(mPositionOffset); // <PAT:XR/> VR: anchor stays in the world
+    screen_offset = (PATXRSession::inEyes() || pat_vr) ? LLVector2::zero : updateScreenPos(mPositionOffset); // <PAT:XR/> VR: anchor stays in the world
 
     LLVector3 render_position = position
             + (x_pixel_vec * screen_offset.mV[VX])

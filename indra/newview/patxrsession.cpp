@@ -1474,6 +1474,11 @@ bool PATXRSession::pixelVectors(const LLVector3& pos_agent, LLVector3& up, LLVec
     return PATXRStereo::pixelVectors(pos_agent, up, right);
 }
 
+bool PATXRSession::nameTagPickVectors(const LLVector3& pos_agent, LLVector3& up, LLVector3& right)
+{
+    return sXR.uiActive && PATXRStereo::tagPickVectors(pos_agent, up, right);
+}
+
 bool PATXRSession::drawHudText(const LLWString& text, const LLVector3& pos_agent, const LLVector3& right_axis,
                                const LLVector3& up_axis, const LLFontGL& font, U8 style, S32 shadow, const LLColor4& color)
 {
@@ -1714,6 +1719,11 @@ bool PATXRSession::inEyes()
 }
 
 bool PATXRSession::pixelVectors(const LLVector3&, LLVector3&, LLVector3&)
+{
+    return false;
+}
+
+bool PATXRSession::nameTagPickVectors(const LLVector3&, LLVector3&, LLVector3&)
 {
     return false;
 }
