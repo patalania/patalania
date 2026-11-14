@@ -52,6 +52,7 @@
 #include "llfocusmgr.h"
 #include "lltoolmgr.h"
 #include "lltoolpie.h"
+#include "lltooltip.h"
 #include "llviewerobject.h"
 #include "lluictrl.h"
 #include "lltrans.h"
@@ -1602,81 +1603,107 @@ void PATXRSession::pointerHover(bool over_ui)
     const LLCoordGL mouse = gViewerWindow->getCurrentMouse();
     const bool beyond = mouse.mX < 0 || mouse.mY < 0 || mouse.mX >= gViewerWindow->getWindowWidthScaled() ||
                         mouse.mY >= gViewerWindow->getWindowHeightScaled();
-    if (over_ui && !beyond)
+    // A tooltip under the pointer (hover tips over avatars and objects take the
+    // hover) is not UI on the panel: over the world it goes to the pointer depth.
+    if (over_ui && LLToolTipMgr::instance().toolTipVisible() &&
+        LLToolTipMgr::instance().getToolTipRect().pointInRect(mouse.mX, mouse.mY))
     {
-        PATXRUI::setPointerTarget(true, 0.f);
-        return;
+        over_ui = false;
+    }
+    const char* source = "ui";
+    const LLPickInfo* pick = nullptr;
+    if (!(over_ui && !beyond))
+    {
+        // What the pointer points at: the pointer tool picked right now in its
+        // hover (same ray as the clicks) - reuse it, unless it hit an avatar:
+        // without rigged picking an avatar is only hit on its collision
+        // ellipsoids, mesh bodies and rigged attachments not at all. Then, in
+        // the same frame, an own pick with rigged meshes. Other tools (build,
+        // grab, mouselook): the same own pick, when the pointer moved and every
+        // 3rd frame otherwise. The own pick touches nothing (no mLastPick, no callback).
+        static LLPickInfo s_pick;
+        static LLCoordGL s_pick_mouse(-99999, -99999);
+        static U32 s_frames = 0;
+        LLToolPie* pie = LLToolPie::getInstance();
+        bool fresh = false;
+        if (!over_ui && !gFocusMgr.getMouseCapture() && LLToolMgr::getInstance()->getCurrentTool() == pie &&
+            pie->getHoverPick().mMousePt == mouse)
+        {
+            pick = &pie->getHoverPick();
+            source = "hover";
+            if (pick->mPickType == LLPickInfo::PICK_OBJECT)
+            {
+                LLPointer<LLViewerObject> obj = pick->getObject();
+                if (obj.notNull() && (obj->isAvatar() || obj->isAttachment()))
+                {
+                    pick = nullptr;
+                    fresh = true;
+                }
+            }
+        }
+        if (!pick)
+        {
+            if (fresh || !(s_pick_mouse == mouse) || ++s_frames >= 3)
+            {
+                s_frames = 0;
+                s_pick_mouse = mouse;
+                s_pick = LLPickInfo(mouse, gKeyboard ? gKeyboard->currentMask(true) : MASK_NONE, false, true, false, false,
+                                    false, false, nullptr);
+                s_pick.fetchResults();
+            }
+            pick = &s_pick;
+            source = fresh ? "rigged" : "own";
+        }
+        if (pick->mPickHUD && !beyond)
+        {
+            pick = nullptr;
+            source = "hud";
+        }
     }
 
-    // What the pointer points at: the pointer tool picked right now in its hover
-    // (same ray as the clicks) - reuse it, unless it hit an avatar: without
-    // rigged picking an avatar is only hit on its collision ellipsoids, and
-    // mesh bodies / rigged attachments not at all, so the depth is off by
-    // centimetres - too much right in front of the eyes. Then, and for other
-    // tools (build, grab, mouselook), an own pick with rigged meshes that
-    // touches nothing (no mLastPick, no callback): when the pointer moved
-    // (rigged: at most every 2nd frame) and every 3rd frame otherwise.
-    static LLPickInfo s_pick;
-    static LLCoordGL s_pick_mouse(-99999, -99999);
-    static U32 s_frames = 0;
-    LLToolPie* pie = LLToolPie::getInstance();
-    const LLPickInfo* pick = nullptr;
-    const LLPickInfo* hover = nullptr;
-    bool on_avatar = false;
-    if (!over_ui && !gFocusMgr.getMouseCapture() && LLToolMgr::getInstance()->getCurrentTool() == pie &&
-        pie->getHoverPick().mMousePt == mouse)
+    F32 dist = 0.f;
+    if (pick)
     {
-        pick = hover = &pie->getHoverPick();
-        if (pick->mPickType == LLPickInfo::PICK_OBJECT)
+        dist = -1.f; // sky
+        LLVector3 dir;
+        XrVector3f o, d;
+        LLVector3 eye;
+        if (pick->mPickType != LLPickInfo::PICK_INVALID && !pick->mPosGlobal.isExactlyZero() &&
+            mouseDirection(mouse.mX, mouse.mY, dir) && PATXRUI::rayRoom(0.5f, 0.5f, o, d) &&
+            PATXRStereo::roomPointToAgent(o, eye))
+        {
+            dist = (gAgent.getPosAgentFromGlobal(pick->mPosGlobal) - eye) * dir;
+        }
+    }
+    PATXRUI::setPointerTarget(pick == nullptr, dist);
+
+    // Log (PATXRPointer): where the depth comes from, when it changes noticeably (at most 5 per second).
+    static const char* s_last_source = nullptr;
+    static F32 s_last_dist = 0.f;
+    static F64 s_last_log = 0.0;
+    const F64 now = LLTimer::getTotalSeconds();
+    const bool changed = source != s_last_source ||
+                         (dist > 0.f) != (s_last_dist > 0.f) ||
+                         (dist > 0.f && fabsf(dist - s_last_dist) > 0.1f * llmax(dist, s_last_dist));
+    if (changed && now - s_last_log > 0.2)
+    {
+        s_last_log = now;
+        s_last_source = source;
+        s_last_dist = dist;
+        std::string what = "-";
+        if (pick)
         {
             LLPointer<LLViewerObject> obj = pick->getObject();
-            on_avatar = obj.notNull() && (obj->isAvatar() || obj->isAttachment());
+            what = pick->mPickType == LLPickInfo::PICK_LAND     ? "land"
+                   : pick->mPickType == LLPickInfo::PICK_INVALID ? "nothing"
+                   : obj.isNull()                                ? "other"
+                   : obj->isAvatar()                             ? "avatar"
+                   : obj->isAttachment()                         ? "attachment"
+                                                                 : "object";
         }
+        LL_INFOS("PATXRPointer") << llformat("pointer depth from %s: %s, %.2f m (mouse %d,%d)", source, what.c_str(), dist,
+                                             mouse.mX, mouse.mY) << LL_ENDL;
     }
-    if (!pick || on_avatar)
-    {
-        ++s_frames;
-        if ((!(s_pick_mouse == mouse) && s_frames >= 2) || s_frames >= 3)
-        {
-            s_frames = 0;
-            s_pick_mouse = mouse;
-            s_pick = LLPickInfo(mouse, gKeyboard ? gKeyboard->currentMask(true) : MASK_NONE, false, true, false, false, false,
-                                false, nullptr);
-            s_pick.fetchResults();
-        }
-        pick = &s_pick;
-    }
-
-    if (pick->mPickHUD && !beyond)
-    {
-        PATXRUI::setPointerTarget(true, 0.f); // HUD attachments are on the panel
-        return;
-    }
-    LLVector3 dir;
-    XrVector3f o, d;
-    LLVector3 eye;
-    const bool ray = mouseDirection(mouse.mX, mouse.mY, dir) && PATXRUI::rayRoom(0.5f, 0.5f, o, d) &&
-                     PATXRStereo::roomPointToAgent(o, eye);
-    auto hitDist = [&](const LLPickInfo* p) -> F32
-    {
-        if (!ray || !p || p->mPickType == LLPickInfo::PICK_INVALID || p->mPosGlobal.isExactlyZero())
-        {
-            return -1.f; // sky
-        }
-        return (gAgent.getPosAgentFromGlobal(p->mPosGlobal) - eye) * dir;
-    };
-    F32 dist = hitDist(pick);
-    if (hover && pick != hover)
-    {
-        // Over an avatar: the hover pick of this very frame (name tag, ellipsoid) wins
-        // when it is nearer than the throttled rigged pick - never behind what is seen.
-        const F32 hover_dist = hitDist(hover);
-        if (hover_dist > 0.f && (dist <= 0.f || hover_dist < dist))
-        {
-            dist = hover_dist;
-        }
-    }
-    PATXRUI::setPointerTarget(false, dist);
 }
 
 bool PATXRSession::uiHidden()

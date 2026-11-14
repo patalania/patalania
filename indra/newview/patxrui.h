@@ -105,7 +105,7 @@ namespace PATXRUI
     // on_ui = over a UI element (HUDs included) on the panel, drawn into the panel; otherwise drawn
     // into the eye images at dist = metres from the eye centre along the pointer ray to what it
     // points at (<= 0: nothing hit, the sky). Stereo-correct, so the eyes need not converge on the
-    // panel plane while looking at a near object; depth changes glide (~0.1 s), the direction never lags.
+    // panel plane while looking at a near object; depth changes at once (no smoothing).
     void setPointerTarget(bool on_ui, F32 dist);
     // The pointer is shown (not hidden by mouselook / camera steering).
     bool pointerVisible();

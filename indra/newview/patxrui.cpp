@@ -63,7 +63,6 @@ namespace
     constexpr F32 FOLLOW_TIME = 0.4f;   // s, time constant of the follow movement
     constexpr F32 POINTER_MIN_DIST = 0.1f;  // m, nearest pointer depth in the world
     constexpr F32 POINTER_SKY_DIST = 20.f;  // m, depth without a hit (sky) and farthest depth
-    constexpr F32 POINTER_DEPTH_TIME = 0.025f; // s, time constant when the depth grows (~95 % in 75 ms)
     constexpr F32 POINTER_IN_FRONT = 0.985f;   // hits: slightly in front of the surface, never behind it
 
     // PATVRUIMode
@@ -594,10 +593,8 @@ namespace
         return true;
     }
 
-    // Once per frame: glide the drawn depth towards the target (in log depth, so
-    // near and far changes feel alike). Over the UI it rests on the panel, so a
-    // move from the UI into the world starts from there.
-    void updatePointerDepth(F32 dt)
+    // Once per frame: the drawn depth = the hit under the pointer (over the UI: the panel).
+    void updatePointerDepth(F32 /*dt*/)
     {
         XrVector3f p;
         bool inside = false;
@@ -612,17 +609,10 @@ namespace
             sPtrDepth = panel_dist;
             return;
         }
-        const F32 target = sPtrTarget > 0.f ? llclamp(sPtrTarget * POINTER_IN_FRONT, POINTER_MIN_DIST, POINTER_SKY_DIST)
-                                            : POINTER_SKY_DIST;
-        if (sPtrDepth <= 0.f || target <= sPtrDepth)
-        {
-            // Nearer: at once - a pointer behind the surface it lies on is what the eyes see double.
-            sPtrDepth = target;
-            return;
-        }
-        // Farther (an edge, a gap, the sky): a short glide, so it does not jump into the distance.
-        const F32 a = 1.f - expf(-llmax(0.f, dt) / POINTER_DEPTH_TIME);
-        sPtrDepth = expf(logf(sPtrDepth) + (logf(target) - logf(sPtrDepth)) * a);
+        // Always the depth of the hit under the pointer, at once in both directions:
+        // the eyes see a pointer at the wrong depth double, a depth jump is less of a bother.
+        sPtrDepth = sPtrTarget > 0.f ? llclamp(sPtrTarget * POINTER_IN_FRONT, POINTER_MIN_DIST, POINTER_SKY_DIST)
+                                     : POINTER_SKY_DIST;
     }
 
     // Panel texture bound as draw target on sFbo: while the pointer is over the
