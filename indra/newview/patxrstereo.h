@@ -27,6 +27,8 @@
 
 #include <openxr/openxr.h>
 
+#include <string>
+
 #include "patxrhands.h"
 
 class LLColor4;
@@ -127,6 +129,8 @@ namespace PATXRStereo
     bool pointerDrawnInEyes();
     // from_tag: the nearest hit is a name tag plate drawn in that frame.
     bool pointerDepth(F32& dist, bool& from_tag);
+    // Log text: size of the name tag plate the pointer depth came from last.
+    std::string lastTagPlate(F32 dist);
     // LLHUDNameTag::renderText() in the eyes: plate as drawn (see PATXRSession::nameTagDrawn).
     void nameTagDrawn(const LLVector3& origin, const LLVector3& x_axis, const LLVector3& y_axis, const LLRect& rect,
                       F32 bg_alpha);

@@ -1638,8 +1638,9 @@ namespace
             s_last_log = now;
             s_last_source = source;
             s_last_dist = dist;
+            const std::string extra = strcmp(source, "tag") == 0 ? ", " + PATXRStereo::lastTagPlate(dist) : std::string();
             LL_INFOS("PATXRPointer") << llformat("pointer depth from %s: %.2f m (mouse %d,%d)", source, dist, mouse.mX, mouse.mY)
-                                     << LL_ENDL;
+                                     << extra << LL_ENDL;
         }
     }
 }

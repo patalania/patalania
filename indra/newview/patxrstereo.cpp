@@ -165,7 +165,11 @@ namespace
     struct TagPlate
     {
         LLVector3 o, x, y;
+        F32 bg_alpha = 1.f;
+        bool text_only = false;
     };
+    TagPlate sTagHitPlate[2];   // plate hit by that sample (log)
+    TagPlate sLastTagPlate;
     std::vector<TagPlate> sTagPlates;
     S32 sFinishingEye = -1;
     bool sPointerInEyes = false;   // the pointer was drawn in the world pass of this frame
@@ -1181,6 +1185,10 @@ namespace
         const F32 tag = sDepthTag[slot];
         sDepthFromTag = tag > 0.f && (dist <= 0.f || tag < dist);
         sDepthDist = sDepthFromTag ? tag : dist;
+        if (sDepthFromTag)
+        {
+            sLastTagPlate = sTagHitPlate[slot];
+        }
         sDepthValid = true;
     }
 }
@@ -1419,6 +1427,7 @@ void PATXRStereo::samplePointerDepth(const LLVector3& origin, const LLVector3& d
         if (u >= 0.f && u <= 1.f && v >= 0.f && v <= 1.f)
         {
             sDepthTag[slot] = t;
+            sTagHitPlate[slot] = plate;
         }
     }
     DepthSample* smp = sDepthSamples[slot];
@@ -1499,7 +1508,16 @@ void PATXRStereo::nameTagDrawn(const LLVector3& origin, const LLVector3& x_axis,
     {
         return;
     }
-    sTagPlates.push_back({ origin + x_axis * l + y_axis * b, x_axis * w, y_axis * h });
+    sTagPlates.push_back({ origin + x_axis * l + y_axis * b, x_axis * w, y_axis * h, bg_alpha, bg_alpha < 0.1f });
+}
+
+std::string PATXRStereo::lastTagPlate(F32 dist)
+{
+    const F32 w = sLastTagPlate.x.magVec(), h = sLastTagPlate.y.magVec();
+    const F32 d = llmax(0.05f, dist);
+    return llformat("plate %.3f x %.3f m (%.2f x %.2f deg), bg alpha %.2f, %s", w, h, 2.f * atanf(0.5f * w / d) * RAD_TO_DEG,
+                    2.f * atanf(0.5f * h / d) * RAD_TO_DEG, sLastTagPlate.bg_alpha,
+                    sLastTagPlate.text_only ? "text block only" : "whole plate");
 }
 
 bool PATXRStereo::pointerDepth(F32& dist, bool& from_tag)
