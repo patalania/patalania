@@ -1265,6 +1265,27 @@ void PATXRUI::drawWorldPointer(const XrView& view, GLuint texture, S32 width, S3
     glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
 }
 
+bool PATXRUI::windowPointTowards(const XrVector3f& p, F32& x, F32& y)
+{
+    if (!sActive || !sPlaced || !sEyeValid || !gViewerWindow)
+    {
+        return false;
+    }
+    XrVector3f d = sub(p, sEye);
+    norm(d);
+    const F32 den = dot(d, sN);
+    if (den > -0.01f)
+    {
+        return false; // not towards the panel plane
+    }
+    const XrVector3f hit = add(sEye, mul(d, dot(sub(sC, sEye), sN) / den));
+    const F32 u = dot(sub(hit, sC), sR) / sW + 0.5f;
+    const F32 v = dot(sub(hit, sC), sU) / llmax(0.01f, sH) + 0.5f;
+    x = u * (F32)gViewerWindow->getWindowWidthScaled();
+    y = v * (F32)gViewerWindow->getWindowHeightScaled();
+    return true;
+}
+
 void PATXRUI::setPointerNear(F32 dist)
 {
     sPtrNear = dist;

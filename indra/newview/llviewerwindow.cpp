@@ -3775,6 +3775,7 @@ void LLViewerWindow::moveCursorToCenter()
     {
         S32 x = getWorldViewWidthScaled() / 2;
         S32 y = getWorldViewHeightScaled() / 2;
+        PATXRSession::cursorCentre(x, y); // <PAT:XR/> VR: where the eyes see the view centre
 
         LLUI::getInstance()->setMousePositionScreen(x, y);
 

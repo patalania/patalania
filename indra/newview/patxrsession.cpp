@@ -40,6 +40,7 @@
 #include "patxrui.h"
 
 #include "llagent.h"
+#include "llagentcamera.h"
 #include "llfloater.h"
 #include "llfloaterreg.h"
 #include "llscriptfloater.h"
@@ -1631,6 +1632,40 @@ void PATXRSession::worldHovered()
     sWorldHovered = true;
 }
 
+void PATXRSession::cursorCentre(S32& x, S32& y)
+{
+    if (!sXR.uiActive || !gViewerWindow)
+    {
+        return;
+    }
+    LLVector3 origin, at;
+    PATXRStereo::realCamera(origin, at);
+    const LLVector3d focus = gAgentCamera.getFocusGlobal();
+    const F32 dist = llclamp((F32)(focus - gAgent.getPosGlobalFromAgent(origin)).magVec(), 0.5f, 100.f);
+    XrVector3f target;
+    F32 fx = 0.f, fy = 0.f;
+    if (!PATXRStereo::agentPointToRoom(origin + at * dist, target) || !PATXRUI::windowPointTowards(target, fx, fy))
+    {
+        return;
+    }
+    const S32 nx = ll_round(fx), ny = ll_round(fy);
+    // where the new pointer ray passes the view centre point (log)
+    LLVector3 dir, eye;
+    XrVector3f o, d;
+    F32 miss = -1.f;
+    if (mouseDirection(nx, ny, dir) && PATXRUI::rayRoom(0.5f, 0.5f, o, d) && PATXRStereo::roomPointToAgent(o, eye))
+    {
+        const LLVector3 to = origin + at * dist - eye;
+        miss = (to - dir * (to * dir)).magVec();
+    }
+    LL_INFOS("PATXR") << llformat("Pointer to the view centre: %d,%d -> %d,%d (panel centre would be %d,%d), "
+                                  "%.3f m beside the centre point at %.1f m",
+                                  gViewerWindow->getCurrentMouse().mX, gViewerWindow->getCurrentMouse().mY, nx, ny, x, y,
+                                  miss, dist) << LL_ENDL;
+    x = nx;
+    y = ny;
+}
+
 void PATXRSession::cameraAnimationStart(LLVector3d& start_global)
 {
     LLVector3 origin;
@@ -1834,6 +1869,10 @@ void PATXRSession::worldHovered()
 }
 
 void PATXRSession::cameraAnimationStart(LLVector3d&)
+{
+}
+
+void PATXRSession::cursorCentre(S32&, S32&)
 {
 }
 

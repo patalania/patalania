@@ -940,6 +940,19 @@ bool PATXRStereo::roomPointToAgent(const XrVector3f& p, LLVector3& out)
     return true;
 }
 
+bool PATXRStereo::agentPointToRoom(const LLVector3& p, XrVector3f& out)
+{
+    if (!sHaveMap || !sHaveRef)
+    {
+        return false;
+    }
+    const LLVector3 d = p - sMapBase;
+    const Vec3 v = { -(d * sMapLeft), d * sMapUp, -(d * sMapFwd) }; // inverse of toWorld (orthonormal axes)
+    const F32 c = cosf(sRefYaw), s = sinf(sRefYaw);                 // inverse of unyaw
+    out = { c * v.x + s * v.z + sRefPos.x, v.y + sRefPos.y, -s * v.x + c * v.z + sRefPos.z };
+    return true;
+}
+
 bool PATXRStereo::roomDirToAgent(const XrVector3f& d, LLVector3& out)
 {
     if (!sHaveMap || !sHaveRef)
@@ -986,6 +999,18 @@ void PATXRStereo::setPointerCamera(const XrVector3f& origin, const XrVector3f& a
 bool PATXRStereo::pointerCameraActive()
 {
     return sPointerCamera;
+}
+
+void PATXRStereo::realCamera(LLVector3& origin, LLVector3& at)
+{
+    if (sPointerCamera)
+    {
+        origin = sSavedCamera.origin;
+        at = sSavedCamera.at;
+        return;
+    }
+    origin = LLViewerCamera::instance().getOrigin();
+    at = LLViewerCamera::instance().getAtAxis();
 }
 
 bool PATXRStereo::savedCameraOrigin(LLVector3& origin)

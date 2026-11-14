@@ -106,6 +106,9 @@ namespace PATXRUI
     // drawn at that depth (into the eye images, same angular size) instead of on
     // the panel plane, so the eyes need not converge on the panel right in front of a face.
     void setPointerNear(F32 dist);
+    // Window point (scaled UI px, GL y up) whose pointer ray from the eye centre goes
+    // through the LOCAL point p (on the panel plane or its extension beyond the panel).
+    bool windowPointTowards(const XrVector3f& p, F32& x, F32& y);
 
     // UI scale while the UI is on the panel (1 otherwise).
     F32 uiScale();

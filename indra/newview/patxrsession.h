@@ -109,6 +109,11 @@ public:
     // LLAgentCamera::startCameraAnimation(): start from Firestorm's camera, not from the
     // pointer camera that is set during input handling (Alt+click focus jumped back).
     static void cameraAnimationStart(LLVector3d& start_global);
+    // LLViewerWindow::moveCursorToCenter(): in VR the window centre is the panel
+    // centre, below the view centre; put the pointer where the eyes see the view
+    // centre (the camera's axis at the focus distance) - a click without moving
+    // the mouse then picks the focus again (repeated Alt+click tilted the view down).
+    static void cursorCentre(S32& x, S32& y);
     // FSNearbyChatControl::autohide(): the whole UI is hidden in VR (the chat bar hides again after use).
     static bool uiHidden();
     // LLViewerWindow::performPick(): pick callbacks (manipulator highlights) run

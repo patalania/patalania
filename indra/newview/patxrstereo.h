@@ -101,6 +101,8 @@ namespace PATXRStereo
     // frame (viewer camera x head reference). False before the first eye frame.
     bool roomPointToAgent(const XrVector3f& p, LLVector3& out);
     bool roomDirToAgent(const XrVector3f& d, LLVector3& out);
+    // Inverse: agent frame -> LOCAL space (same mapping).
+    bool agentPointToRoom(const LLVector3& p, XrVector3f& out);
 
     // Between two frames (input handling, idle) LLViewerCamera is the pointer
     // camera of the UI panel, so that screen-space logic of the tools
@@ -113,6 +115,8 @@ namespace PATXRStereo
     bool pointerCameraActive();
     // Firestorm's own camera origin while the pointer camera is set (agent frame).
     bool savedCameraOrigin(LLVector3& origin);
+    // Firestorm's own camera (origin, view axis), also while the pointer camera is set.
+    void realCamera(LLVector3& origin, LLVector3& at);
     // Off-axis shift of the pointer camera (LLViewerCamera::calcProjection).
     void offsetProjection(LLMatrix4& proj);
 
