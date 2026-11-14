@@ -269,7 +269,7 @@ namespace
     void updatePointerNear()
     {
         F32 near = -1.f;
-        static LLCachedControl<F32> near_dist(gSavedSettings, "PATVRPointerNearDistance", 1.f);
+        static LLCachedControl<F32> near_dist(gSavedSettings, "PATVRPointerNearDistance", 2.f);
         const F32 limit = llclamp((F32)near_dist, 0.f, 2.f);
         LLToolPie* pie = LLToolPie::getInstance();
         if (limit > 0.f && sWorldHovered && gViewerWindow && !gFocusMgr.getMouseCapture() &&
