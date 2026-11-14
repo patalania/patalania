@@ -159,6 +159,15 @@ namespace
     U32 sDepthSlot = 0;
     bool sDepthValid = false;
     F32 sDepthDist = -1.f;
+    bool sDepthFromTag = false;
+    F32 sDepthTag[2] = { -1.f, -1.f };   // name tag plate hit of that sample's frame
+    // Name tag plates drawn into the left eye this frame (corners: origin, +x, +y).
+    struct TagPlate
+    {
+        LLVector3 o, x, y;
+    };
+    std::vector<TagPlate> sTagPlates;
+    S32 sFinishingEye = -1;
     bool sPointerInEyes = false;   // the pointer was drawn in the world pass of this frame
     // Stereo diagnosis (PATVRPointerStereoDiag): max. element difference between
     // the matrices in effect after each eye's geometry pass and the intended ones.
@@ -350,6 +359,7 @@ namespace
     // text, selection outlines, beacons), then alpha and the keyboard windows.
     void finishEye(U32 eye, const XrView& view, const PATXRPalm palms[2])
     {
+        sFinishingEye = (S32)eye;
         LLRenderTarget& rt = sEyeRT[eye];
         rt.bindTarget();
         glClearColor(0.f, 0.f, 0.f, 1.f);
@@ -423,6 +433,7 @@ namespace
             sPointerInEyes = sPointerInEyes || drawn; // (framebuffer, viewport and GL state restored by PATXRUI)
         }
 
+        sFinishingEye = -1;
         forceOpaqueAlpha();
         PATXRKeyboard::draw(view, palms);
         rt.flush();
@@ -517,6 +528,7 @@ void PATXRStereo::resetReference()
 bool PATXRStereo::beginEyes(const XrView views[2])
 {
     sPointerInEyes = false;
+    sTagPlates.clear();
     if (!sInitialised || sInEyes || gSnapshot || gCubeSnapshot || !gViewerWindow)
     {
         return false;
@@ -1166,7 +1178,9 @@ namespace
         }
         glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
         glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
-        sDepthDist = dist;
+        const F32 tag = sDepthTag[slot];
+        sDepthFromTag = tag > 0.f && (dist <= 0.f || tag < dist);
+        sDepthDist = sDepthFromTag ? tag : dist;
         sDepthValid = true;
     }
 }
@@ -1383,6 +1397,30 @@ void PATXRStereo::samplePointerDepth(const LLVector3& origin, const LLVector3& d
 
     const U32 slot = sDepthSlot;
     sDepthSlot ^= 1u;
+    // name tag plates of this frame along the same ray
+    sDepthTag[slot] = -1.f;
+    for (const TagPlate& plate : sTagPlates)
+    {
+        LLVector3 n = plate.x % plate.y;
+        const F32 len = n.normVec();
+        const F32 den = dir * n;
+        if (len < 1e-9f || fabsf(den) < 1e-6f)
+        {
+            continue;
+        }
+        const F32 t = ((plate.o - origin) * n) / den;
+        if (t < 0.05f || (sDepthTag[slot] > 0.f && t >= sDepthTag[slot]))
+        {
+            continue;
+        }
+        const LLVector3 rel = origin + dir * t - plate.o;
+        const F32 u = (rel * plate.x) / (plate.x * plate.x);
+        const F32 v = (rel * plate.y) / (plate.y * plate.y);
+        if (u >= 0.f && u <= 1.f && v >= 0.f && v <= 1.f)
+        {
+            sDepthTag[slot] = t;
+        }
+    }
     DepthSample* smp = sDepthSamples[slot];
     const glm::mat4& proj = sProj[0];
     sDepthA[slot] = proj[2][2];
@@ -1440,7 +1478,31 @@ bool PATXRStereo::pointerDrawnInEyes()
     return sPointerInEyes;
 }
 
-bool PATXRStereo::pointerDepth(F32& dist)
+void PATXRStereo::nameTagDrawn(const LLVector3& origin, const LLVector3& x_axis, const LLVector3& y_axis, const LLRect& rect,
+                               F32 bg_alpha)
+{
+    if (!sInEyes || sFinishingEye != 0)
+    {
+        return; // the plates face the head centre: the left eye's are those of both eyes
+    }
+    // Plate as drawn (LLUIImage::draw3D); with a (nearly) invisible background only
+    // the text block counts (padding of llhudnametag.cpp: 16 x 12 px).
+    F32 l = (F32)rect.mLeft, b = (F32)rect.mBottom, w = (F32)rect.getWidth(), h = (F32)rect.getHeight();
+    if (bg_alpha < 0.1f)
+    {
+        l += 8.f;
+        w -= 16.f;
+        b += 6.f;
+        h -= 12.f;
+    }
+    if (w <= 0.f || h <= 0.f || sTagPlates.size() >= 256)
+    {
+        return;
+    }
+    sTagPlates.push_back({ origin + x_axis * l + y_axis * b, x_axis * w, y_axis * h });
+}
+
+bool PATXRStereo::pointerDepth(F32& dist, bool& from_tag)
 {
     // between frames (idle): the samples of the last eye frame; the eye images
     // were finished and submitted since, so the read does not wait.
@@ -1456,6 +1518,7 @@ bool PATXRStereo::pointerDepth(F32& dist)
         return false;
     }
     dist = sDepthDist;
+    from_tag = sDepthFromTag;
     return true;
 }
 

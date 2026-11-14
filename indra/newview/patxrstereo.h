@@ -125,7 +125,11 @@ namespace PATXRStereo
     // The VR pointer over the world went into the eye images of this frame in
     // the world pass (setting PATVRPointerInWorldPass): no overlay on top then.
     bool pointerDrawnInEyes();
-    bool pointerDepth(F32& dist);
+    // from_tag: the nearest hit is a name tag plate drawn in that frame.
+    bool pointerDepth(F32& dist, bool& from_tag);
+    // LLHUDNameTag::renderText() in the eyes: plate as drawn (see PATXRSession::nameTagDrawn).
+    void nameTagDrawn(const LLVector3& origin, const LLVector3& x_axis, const LLVector3& y_axis, const LLRect& rect,
+                      F32 bg_alpha);
 
     // Copy eye 'eye' into an OpenXR swapchain image (GL texture) of the same size.
     void copyToSwapchain(U32 eye, GLuint texture, S32 width, S32 height);

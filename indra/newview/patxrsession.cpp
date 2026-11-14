@@ -1495,6 +1495,12 @@ bool PATXRSession::inEyes()
     return PATXRStereo::inEyes();
 }
 
+void PATXRSession::nameTagDrawn(const LLVector3& origin, const LLVector3& x_axis, const LLVector3& y_axis, const LLRect& rect,
+                                F32 bg_alpha)
+{
+    PATXRStereo::nameTagDrawn(origin, x_axis, y_axis, rect, bg_alpha);
+}
+
 bool PATXRSession::pixelVectors(const LLVector3& pos_agent, LLVector3& up, LLVector3& right)
 {
     return PATXRStereo::pixelVectors(pos_agent, up, right);
@@ -1624,9 +1630,10 @@ namespace
         static F32 s_last_dist = 0.f;
         static F64 s_last_log = 0.0;
         const F64 now = LLTimer::getTotalSeconds();
-        const bool changed = source != s_last_source || (dist > 0.f) != (s_last_dist > 0.f) ||
+        const bool source_changed = source != s_last_source;
+        const bool changed = source_changed || (dist > 0.f) != (s_last_dist > 0.f) ||
                              (dist > 0.f && fabsf(dist - s_last_dist) > 0.1f * llmax(dist, s_last_dist));
-        if (changed && now - s_last_log > 0.2)
+        if (changed && now - s_last_log > (source_changed ? 0.1 : 0.2))
         {
             s_last_log = now;
             s_last_source = source;
@@ -1701,31 +1708,24 @@ void PATXRSession::pointerHover(bool over_ui)
     {
         return;
     }
-    // The depth is what the eyes see along the pointer ray (depth buffer of the
-    // last eye image): mesh bodies, alpha-textured walls, click-through objects
-    // alike. Name tags write no depth: their plates (as drawn) are tested along the same ray.
+    // The depth is what the eyes see along the pointer ray in the last eye
+    // frame: its depth buffer (mesh bodies, alpha-textured walls, click-through
+    // objects alike) and the name tag plates drawn in that frame (they write no
+    // depth), both from the same frame, the same for both eyes.
     F32 dist = -1.f;
+    bool from_tag = false;
     const char* source = "seen";
-    if (!PATXRStereo::pointerDepth(dist))
+    if (PATXRStereo::pointerDepth(dist, from_tag))
+    {
+        source = from_tag ? "tag" : "seen";
+    }
+    else
     {
         source = "pick";
         dist = -1.f;
         if (pick->mPickType != LLPickInfo::PICK_INVALID && !pick->mPosGlobal.isExactlyZero())
         {
             dist = (gAgent.getPosAgentFromGlobal(pick->mPosGlobal) - eye) * dir;
-        }
-    }
-    LLVector4a start, end, hit;
-    start.load3((eye + dir * 0.05f).mV);
-    end.load3((eye + dir * (dist > 0.f ? dist : 30.f)).mV);
-    for (LLCharacter* character : LLCharacter::sInstances)
-    {
-        LLVOAvatar* avatar = (LLVOAvatar*)character;
-        if (avatar->mNameText.notNull() && avatar->mNameText->lineSegmentIntersect(start, end, hit))
-        {
-            end = hit;
-            dist = (LLVector3(hit.getF32ptr()) - eye) * dir;
-            source = "tag";
         }
     }
     PATXRUI::setPointerTarget(false, dist);
@@ -1859,6 +1859,10 @@ bool PATXRSession::drawDesktopMirror()
 bool PATXRSession::inEyes()
 {
     return false;
+}
+
+void PATXRSession::nameTagDrawn(const LLVector3&, const LLVector3&, const LLVector3&, const LLRect&, F32)
+{
 }
 
 bool PATXRSession::pixelVectors(const LLVector3&, LLVector3&, LLVector3&)

@@ -76,6 +76,11 @@ public:
     // head centre, distance scaling) instead of the desktop screen rectangle.
     // Returns false outside VR (desktop pick unchanged).
     static bool nameTagPickVectors(const LLVector3& pos_agent, LLVector3& up, LLVector3& right);
+    // LLHUDNameTag::renderText(): a name tag plate drawn into the eyes (origin, pixel
+    // axes, rect in pixels as drawn, background alpha) - the VR pointer depth uses
+    // exactly the plates of the frame, not a pick box.
+    static void nameTagDrawn(const LLVector3& origin, const LLVector3& x_axis, const LLVector3& y_axis, const LLRect& rect,
+                             F32 bg_alpha);
     static bool drawHudText(const LLWString& text, const LLVector3& pos_agent, const LLVector3& right_axis,
                             const LLVector3& up_axis, const LLFontGL& font, U8 style, S32 shadow, const LLColor4& color);
 
