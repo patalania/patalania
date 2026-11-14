@@ -101,6 +101,14 @@ namespace PATXRUI
     // Pointer outside the panel (virtual pointer beyond the window): drawn into
     // the eye image on the plane of the panel, so the move panel <-> world is seamless.
     void drawWorldPointer(const XrView& view, GLuint texture, S32 width, S32 height);
+    // Depth of the pointer, from the hover in LLViewerWindow::updateUI() (PATXRSession::pointerHover):
+    // on_ui = over a UI element (HUDs included) on the panel, drawn into the panel; otherwise drawn
+    // into the eye images at dist = metres from the eye centre along the pointer ray to what it
+    // points at (<= 0: nothing hit, the sky). Stereo-correct, so the eyes need not converge on the
+    // panel plane while looking at a near object; depth changes glide (~0.1 s), the direction never lags.
+    void setPointerTarget(bool on_ui, F32 dist);
+    // The pointer is shown (not hidden by mouselook / camera steering).
+    bool pointerVisible();
 
     // UI scale while the UI is on the panel (1 otherwise).
     F32 uiScale();

@@ -60,6 +60,9 @@ namespace
     constexpr F32 FOLLOW_START = 25.f * DEG_TO_RAD; // mode "follow": start turning after the view left this far
     constexpr F32 FOLLOW_STOP = 3.f * DEG_TO_RAD;
     constexpr F32 FOLLOW_TIME = 0.4f;   // s, time constant of the follow movement
+    constexpr F32 POINTER_MIN_DIST = 0.25f; // m, nearest pointer depth in the world
+    constexpr F32 POINTER_SKY_DIST = 20.f;  // m, depth without a hit (sky) and farthest depth
+    constexpr F32 POINTER_DEPTH_TIME = 0.035f; // s, time constant of depth changes (~95 % in 0.1 s)
 
     // PATVRUIMode
     enum EMode { MODE_ROOM = 0, MODE_HEAD = 1, MODE_FOLLOW = 2 };
@@ -184,6 +187,11 @@ namespace
     bool sFollowing = false;
     // Ctrl+Shift+Space: whole UI (floaters, menus, HUDs) hidden; the pointer stays for world clicks.
     bool sHidden = false;
+
+    // Pointer depth (PATXRUI::setPointerTarget)
+    bool sPtrOnUI = true;
+    F32 sPtrTarget = -1.f;   // world: metres along the ray, <= 0 = sky
+    F32 sPtrDepth = -1.f;    // smoothed depth actually drawn, -1 = not yet known
     bool sSavedUIVisible = true;
     bool sSavedHUDs = true;
 
@@ -556,6 +564,49 @@ namespace
                (gAgentCamera.cameraMouselook() || LLToolCamera::getInstance()->hasMouseCapture());
     }
 
+    // Point on the panel plane under the mouse (LOCAL space); inside = on the panel itself.
+    bool pointerPanelPoint(XrVector3f& p, bool& inside)
+    {
+        if (!gViewerWindow || sTexW <= 0 || sTexH <= 0)
+        {
+            return false;
+        }
+        const LLVector2& scale = gViewerWindow->getDisplayScale();
+        const LLCoordGL mouse = gViewerWindow->getCurrentMouse();
+        const F32 mx = (F32)mouse.mX * scale.mV[VX];
+        const F32 my = (F32)mouse.mY * scale.mV[VY];
+        inside = mx >= 0.f && my >= 0.f && mx < (F32)sTexW && my < (F32)sTexH;
+        p = add(add(sC, mul(sR, (mx / sTexW - 0.5f) * sW)), mul(sU, (my / sTexH - 0.5f) * sH));
+        return true;
+    }
+
+    // Once per frame: glide the drawn depth towards the target (in log depth, so
+    // near and far changes feel alike). Over the UI it rests on the panel, so a
+    // move from the UI into the world starts from there.
+    void updatePointerDepth(F32 dt)
+    {
+        XrVector3f p;
+        bool inside = false;
+        if (!sPlaced || !sEyeValid || !pointerPanelPoint(p, inside))
+        {
+            return;
+        }
+        XrVector3f to_p = sub(p, sEye);
+        const F32 panel_dist = llmax(POINTER_MIN_DIST, norm(to_p));
+        if (inside && sPtrOnUI)
+        {
+            sPtrDepth = panel_dist;
+            return;
+        }
+        const F32 target = sPtrTarget > 0.f ? llclamp(sPtrTarget, POINTER_MIN_DIST, POINTER_SKY_DIST) : POINTER_SKY_DIST;
+        if (sPtrDepth <= 0.f)
+        {
+            sPtrDepth = panel_dist;
+        }
+        const F32 a = 1.f - expf(-llmax(0.f, dt) / POINTER_DEPTH_TIME);
+        sPtrDepth = expf(logf(sPtrDepth) + (logf(target) - logf(sPtrDepth)) * a);
+    }
+
     // Pointer onto the panel texture (bound as draw target, blending set up).
     void drawPointer()
     {
@@ -570,6 +621,10 @@ namespace
         if (mx < 0.f || my < 0.f || mx >= (F32)sTexW || my >= (F32)sTexH)
         {
             return; // beyond the panel: drawn in the world (drawWorldPointer)
+        }
+        if (!sPtrOnUI)
+        {
+            return; // over the world seen through the panel: drawn at the depth of the hit (drawWorldPointer)
         }
         static LLCachedControl<F32> cursor_scale(gSavedSettings, "PATVRCursorScale", 1.f);
         const F32 s = llclamp((F32)cursor_scale, 0.25f, 4.f) * llmax(1.f, scale.mV[VX]);
@@ -969,6 +1024,7 @@ void PATXRUI::update(F32 dt, const XrPosef& left_eye, const XrPosef& right_eye)
 {
     sEye = mul(add(left_eye.position, right_eye.position), 0.5f);
     sEyeValid = true;
+    updatePointerDepth(dt);
     const EMode m = mode();
     if (m == MODE_HEAD)
     {
@@ -1213,27 +1269,30 @@ void PATXRUI::drawWorldPointer(const XrView& view, GLuint texture, S32 width, S3
     {
         return;
     }
-    const LLVector2& scale = gViewerWindow->getDisplayScale();
-    const LLCoordGL mouse = gViewerWindow->getCurrentMouse();
-    const F32 mx = (F32)mouse.mX * scale.mV[VX];
-    const F32 my = (F32)mouse.mY * scale.mV[VY];
-    if (mx >= 0.f && my >= 0.f && mx < (F32)sTexW && my < (F32)sTexH)
+    XrVector3f p;
+    bool inside = false;
+    if (!pointerPanelPoint(p, inside) || (inside && sPtrOnUI))
     {
-        return; // on the panel: drawn into the panel texture
+        return; // over the UI: drawn into the panel texture
     }
     CursorImage* img = cursorImage(gViewerWindow->getWindow()->getCursor());
     if (!img)
     {
         return;
     }
-    const XrVector3f p = add(add(sC, mul(sR, (mx / sTexW - 0.5f) * sW)), mul(sU, (my / sTexH - 0.5f) * sH));
+    // Along the ray from the eye centre through the panel point (the click ray),
+    // at the depth of what it points at; parallel to the panel, same angular size.
+    const LLVector2& scale = gViewerWindow->getDisplayScale();
     const F32 t = llmax(0.05f, dot(sub(sEye, sC), sN));
-    XrVector3f to_p = sub(p, sEye);
-    const F32 k = norm(to_p) / t; // same angular size as on the panel
+    XrVector3f dir = sub(p, sEye);
+    const F32 panel_dist = norm(dir);
+    const F32 depth = sPtrDepth > 0.f ? sPtrDepth : panel_dist;
+    const XrVector3f q = add(sEye, mul(dir, depth));
+    const F32 k = depth / t;
     static LLCachedControl<F32> cursor_scale(gSavedSettings, "PATVRCursorScale", 1.f);
     const F32 m = (sW / (F32)sTexW) * k * llclamp((F32)cursor_scale, 0.25f, 4.f) * llmax(1.f, scale.mV[VX]);
-    // image pixel (x right, y down) relative to the hot spot -> panel plane
-    auto corner = [&](F32 ix, F32 iy) { return add(add(p, mul(sR, (ix - img->hot_x) * m)), mul(sU, -(iy - img->hot_y) * m)); };
+    // image pixel (x right, y down) relative to the hot spot -> plane parallel to the panel
+    auto corner = [&](F32 ix, F32 iy) { return add(add(q, mul(sR, (ix - img->hot_x) * m)), mul(sU, -(iy - img->hot_y) * m)); };
     const XrVector3f corners[4] = { corner(0.f, (F32)img->h), corner((F32)img->w, (F32)img->h), corner(0.f, 0.f),
                                     corner((F32)img->w, 0.f) };
     SavedGL saved;
@@ -1251,6 +1310,17 @@ void PATXRUI::drawWorldPointer(const XrView& view, GLuint texture, S32 width, S3
     }
     drawQuad(clip, FULL_UV);
     glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+}
+
+void PATXRUI::setPointerTarget(bool on_ui, F32 dist)
+{
+    sPtrOnUI = on_ui;
+    sPtrTarget = dist;
+}
+
+bool PATXRUI::pointerVisible()
+{
+    return gViewerWindow && gViewerWindow->getWindow() && !pointerHidden();
 }
 
 F32 PATXRUI::uiScale()

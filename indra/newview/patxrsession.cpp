@@ -49,6 +49,9 @@
 #include "llviewershadermgr.h"
 #include "llnotificationsutil.h"
 #include "llstartup.h"
+#include "llfocusmgr.h"
+#include "lltoolmgr.h"
+#include "lltoolpie.h"
 #include "lluictrl.h"
 #include "lltrans.h"
 #include "llviewercontrol.h"
@@ -1589,6 +1592,65 @@ bool PATXRSession::pointerBeyondWindow()
     return sXR.uiActive && sVirtualPointer;
 }
 
+void PATXRSession::pointerHover(bool over_ui)
+{
+    if (!sXR.uiActive || !gViewerWindow || !PATXRUI::pointerVisible())
+    {
+        return;
+    }
+    const LLCoordGL mouse = gViewerWindow->getCurrentMouse();
+    const bool beyond = mouse.mX < 0 || mouse.mY < 0 || mouse.mX >= gViewerWindow->getWindowWidthScaled() ||
+                        mouse.mY >= gViewerWindow->getWindowHeightScaled();
+    if (over_ui && !beyond)
+    {
+        PATXRUI::setPointerTarget(true, 0.f);
+        return;
+    }
+
+    // What the pointer points at: the pointer tool picked right now in its hover
+    // (same ray as the clicks) - reuse it. Other tools (build, grab, mouselook):
+    // an own pick that touches nothing (no mLastPick, no callback), when the
+    // pointer moved and every few frames otherwise (the view moves, too).
+    static LLPickInfo s_pick;
+    static LLCoordGL s_pick_mouse(-99999, -99999);
+    static U32 s_frames = 0;
+    LLToolPie* pie = LLToolPie::getInstance();
+    const LLPickInfo* pick = nullptr;
+    if (!over_ui && !gFocusMgr.getMouseCapture() && LLToolMgr::getInstance()->getCurrentTool() == pie &&
+        pie->getHoverPick().mMousePt == mouse)
+    {
+        pick = &pie->getHoverPick();
+    }
+    else
+    {
+        if (!(s_pick_mouse == mouse) || ++s_frames >= 3)
+        {
+            s_frames = 0;
+            s_pick_mouse = mouse;
+            s_pick = LLPickInfo(mouse, gKeyboard ? gKeyboard->currentMask(true) : MASK_NONE, false, false, false, false, false,
+                                false, nullptr);
+            s_pick.fetchResults();
+        }
+        pick = &s_pick;
+    }
+
+    if (pick->mPickHUD && !beyond)
+    {
+        PATXRUI::setPointerTarget(true, 0.f); // HUD attachments are on the panel
+        return;
+    }
+    F32 dist = -1.f; // sky
+    LLVector3 dir;
+    XrVector3f o, d;
+    LLVector3 eye;
+    if (pick->mPickType != LLPickInfo::PICK_INVALID && !pick->mPosGlobal.isExactlyZero() &&
+        mouseDirection(mouse.mX, mouse.mY, dir) && PATXRUI::rayRoom(0.5f, 0.5f, o, d) && PATXRStereo::roomPointToAgent(o, eye))
+    {
+        dist = (gAgent.getPosAgentFromGlobal(pick->mPosGlobal) - eye) * dir;
+    }
+    PATXRUI::setPointerTarget(false, dist);
+}
+
 bool PATXRSession::uiHidden()
 {
     return sXR.uiActive && PATXRUI::isHidden();
@@ -1772,6 +1834,10 @@ F32 PATXRSession::uiScale()
 bool PATXRSession::pointerBeyondWindow()
 {
     return false;
+}
+
+void PATXRSession::pointerHover(bool)
+{
 }
 
 bool PATXRSession::uiHidden()

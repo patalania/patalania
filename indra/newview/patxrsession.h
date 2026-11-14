@@ -104,6 +104,11 @@ public:
     static F32 uiScale();
     // LLViewerWindow::updateUI(): the VR pointer may be outside the window (beyond the panel, in the world).
     static bool pointerBeyondWindow();
+    // LLViewerWindow::updateUI(), after the hover went out: over_ui = a UI view took
+    // it (or holds the mouse). Sets the depth the VR pointer is drawn at: the panel
+    // over the UI, else the hit along the click ray (the hover pick of the pointer
+    // tool when it just ran, otherwise an own pick without side effects).
+    static void pointerHover(bool over_ui);
     // FSNearbyChatControl::autohide(): the whole UI is hidden in VR (the chat bar hides again after use).
     static bool uiHidden();
     // LLViewerWindow::performPick(): pick callbacks (manipulator highlights) run
