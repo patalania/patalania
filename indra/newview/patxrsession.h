@@ -106,6 +106,9 @@ public:
     static bool pointerBeyondWindow();
     // LLViewerWindow::updateUI(): the current tool got the hover (the world is under the pointer).
     static void worldHovered();
+    // LLAgentCamera::startCameraAnimation(): start from Firestorm's camera, not from the
+    // pointer camera that is set during input handling (Alt+click focus jumped back).
+    static void cameraAnimationStart(LLVector3d& start_global);
     // FSNearbyChatControl::autohide(): the whole UI is hidden in VR (the chat bar hides again after use).
     static bool uiHidden();
     // LLViewerWindow::performPick(): pick callbacks (manipulator highlights) run

@@ -111,6 +111,8 @@ namespace PATXRStereo
                           F32 ndc_x, F32 ndc_y);
     void restoreCamera();
     bool pointerCameraActive();
+    // Firestorm's own camera origin while the pointer camera is set (agent frame).
+    bool savedCameraOrigin(LLVector3& origin);
     // Off-axis shift of the pointer camera (LLViewerCamera::calcProjection).
     void offsetProjection(LLMatrix4& proj);
 

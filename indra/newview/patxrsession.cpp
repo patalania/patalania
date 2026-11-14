@@ -268,8 +268,8 @@ namespace
     void updatePointerNear()
     {
         F32 near = -1.f;
-        static LLCachedControl<F32> near_dist(gSavedSettings, "PATVRPointerNearDistance", 0.3f);
-        const F32 limit = llclamp((F32)near_dist, 0.f, 1.f);
+        static LLCachedControl<F32> near_dist(gSavedSettings, "PATVRPointerNearDistance", 1.f);
+        const F32 limit = llclamp((F32)near_dist, 0.f, 2.f);
         LLToolPie* pie = LLToolPie::getInstance();
         if (limit > 0.f && sWorldHovered && gViewerWindow && !gFocusMgr.getMouseCapture() &&
             LLToolMgr::getInstance()->getCurrentTool() == pie)
@@ -1631,6 +1631,19 @@ void PATXRSession::worldHovered()
     sWorldHovered = true;
 }
 
+void PATXRSession::cameraAnimationStart(LLVector3d& start_global)
+{
+    LLVector3 origin;
+    if (!sXR.uiActive || !PATXRStereo::savedCameraOrigin(origin))
+    {
+        return;
+    }
+    const LLVector3d real = gAgent.getPosGlobalFromAgent(origin);
+    LL_INFOS("PATXR") << llformat("Camera animation starts from Firestorm's camera, not the pointer camera (%.2f m apart)",
+                                  (F32)(real - start_global).magVec()) << LL_ENDL;
+    start_global = real;
+}
+
 bool PATXRSession::uiHidden()
 {
     return sXR.uiActive && PATXRUI::isHidden();
@@ -1817,6 +1830,10 @@ bool PATXRSession::pointerBeyondWindow()
 }
 
 void PATXRSession::worldHovered()
+{
+}
+
+void PATXRSession::cameraAnimationStart(LLVector3d&)
 {
 }
 

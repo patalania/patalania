@@ -988,6 +988,16 @@ bool PATXRStereo::pointerCameraActive()
     return sPointerCamera;
 }
 
+bool PATXRStereo::savedCameraOrigin(LLVector3& origin)
+{
+    if (!sPointerCamera)
+    {
+        return false;
+    }
+    origin = sSavedCamera.origin;
+    return true;
+}
+
 void PATXRStereo::offsetProjection(LLMatrix4& proj)
 {
     if (sPointerCamera)

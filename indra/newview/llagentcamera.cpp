@@ -26,6 +26,7 @@
 
 #include "llviewerprecompiledheaders.h"
 #include "llagentcamera.h"
+#include "patxrsession.h" // <PAT:XR/>
 
 #include "pipeline.h"
 
@@ -2848,6 +2849,7 @@ void LLAgentCamera::setAnimationDuration(F32 duration)
 void LLAgentCamera::startCameraAnimation()
 {
     mAnimationCameraStartGlobal = getCameraPositionGlobal();
+    PATXRSession::cameraAnimationStart(mAnimationCameraStartGlobal); // <PAT:XR/> VR: not from the pointer camera
     mAnimationFocusStartGlobal = mFocusGlobal;
     setAnimationDuration(gSavedSettings.getF32("ZoomTime"));
     mAnimationTimer.reset();
