@@ -1155,6 +1155,10 @@ namespace
                     {
                         PATXRUI::drawWorldPointer(sXR.views[i], eye.images[index].image, eye.width, eye.height);
                     }
+                    if (ui && i == 1)
+                    {
+                        PATXRUI::logPointerPath(sXR.views);
+                    }
                     releaseImage(eye);
 
                     // The pose the image was rendered with: the compositor reprojects

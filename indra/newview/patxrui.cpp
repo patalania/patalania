@@ -1403,6 +1403,43 @@ void PATXRUI::setPointerTarget(bool on_ui, F32 dist)
     sPtrTarget = dist;
 }
 
+void PATXRUI::logPointerPath(const XrView views[2])
+{
+    static F64 s_last = 0.0;
+    const F64 now = LLTimer::getTotalSeconds();
+    if (now - s_last < 0.5 || !hasImage() || !gViewerWindow || !gViewerWindow->getWindow())
+    {
+        return;
+    }
+    s_last = now;
+    if (pointerHidden())
+    {
+        LL_INFOS("PATXRPointer") << "pointer drawn: hidden" << LL_ENDL;
+        return;
+    }
+    XrVector3f p;
+    bool inside = false;
+    if (!pointerPanelPoint(p, inside))
+    {
+        return;
+    }
+    XrVector3f dir = sub(p, sEye);
+    const F32 panel_dist = norm(dir);
+    const bool panel = inside && sPtrOnUI;
+    const F32 depth = panel ? panel_dist : (sPtrDepth > 0.f ? sPtrDepth : panel_dist);
+    const XrVector3f q = add(sEye, mul(dir, depth));
+    F32 ang[2];
+    for (U32 i = 0; i < 2; ++i)
+    {
+        const XrVector3f e = rotate(views[i].pose.orientation, sub(q, views[i].pose.position), true);
+        ang[i] = atan2f(e.x, -e.z) * RAD_TO_DEG;
+    }
+    LL_INFOS("PATXRPointer") << llformat("pointer drawn: %s @ %.2f m (target %.2f m, panel %.2f m, inside %d, on_ui %d), "
+                                         "angle L %.3f R %.3f deg, disparity %.3f deg",
+                                         panel ? "panel" : "world", depth, sPtrTarget, panel_dist, inside ? 1 : 0,
+                                         sPtrOnUI ? 1 : 0, ang[0], ang[1], ang[0] - ang[1]) << LL_ENDL;
+}
+
 bool PATXRUI::pointerVisible()
 {
     return gViewerWindow && gViewerWindow->getWindow() && !pointerHidden();

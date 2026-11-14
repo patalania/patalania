@@ -107,6 +107,10 @@ namespace PATXRUI
     // points at (<= 0: nothing hit, the sky). Stereo-correct, so the eyes need not converge on the
     // panel plane while looking at a near object; depth changes at once (no smoothing).
     void setPointerTarget(bool on_ui, F32 dist);
+    // Log (PATXRPointer, at most 2 per second): which path drew the pointer this
+    // frame (panel / world) and at which depth, with the angle of its hot spot in
+    // each eye and the resulting disparity.
+    void logPointerPath(const XrView views[2]);
     // The pointer is shown (not hidden by mouselook / camera steering).
     bool pointerVisible();
 
