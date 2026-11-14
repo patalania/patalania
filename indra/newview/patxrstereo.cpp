@@ -138,6 +138,25 @@ namespace
     F32 sEyeTan[2][4] = {};          // per eye: left, right, down, up
     F32 sUnionTan[4] = { -1.f, 1.f, -1.f, 1.f };
     bool sHaveOverlayFrame = false;  // eye frame for the overlay pick (last rendered frame)
+
+    // Pointer depth samples (samplePointerDepth): two pixel pack buffers in turn.
+    constexpr U32 DEPTH_SAMPLES = 64;
+    constexpr F32 DEPTH_NEAR = 0.1f;  // m along the ray
+    constexpr F32 DEPTH_FAR = 30.f;
+    struct DepthSample
+    {
+        F32 t = 0.f;       // distance along the ray
+        F32 z = 0.f;       // view depth of the ray point in the left eye
+        bool valid = false;
+    };
+    GLuint sDepthPbo[2] = { 0, 0 };
+    GLuint sDepthFbo = 0;
+    DepthSample sDepthSamples[2][DEPTH_SAMPLES];
+    F32 sDepthA[2] = { 0.f, 0.f }, sDepthB[2] = { 0.f, 0.f }; // projection terms of that frame
+    bool sDepthPending[2] = { false, false };
+    U32 sDepthSlot = 0;
+    bool sDepthValid = false;
+    F32 sDepthDist = -1.f;
     bool sHaveTagFrame = false;      // name tag geometry of the last rendered eye (pick)
     LLVector3 sTagHead;              // head centre of that eye frame (agent)
     F32 sTagPixelScale = 0.f;        // tan(vfov/2) / (eye height in pixels / 2)
@@ -1013,6 +1032,157 @@ void PATXRStereo::restoreCamera()
     cam.setViewHeightInPixels(sSavedCamera.height);
 }
 
+namespace
+{
+    // Result of the samples issued a frame ago: first point along the ray that
+    // lies behind the visible surface, refined between the two samples around it.
+    void readDepthSlot(U32 slot)
+    {
+        if (!sDepthPending[slot])
+        {
+            return;
+        }
+        sDepthPending[slot] = false;
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, sDepthPbo[slot]);
+        const F32* d = (const F32*)glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, DEPTH_SAMPLES * sizeof(F32), GL_MAP_READ_BIT);
+        if (!d)
+        {
+            glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+            return;
+        }
+        const DepthSample* smp = sDepthSamples[slot];
+        F32 dist = -1.f; // nothing up to DEPTH_FAR
+        bool have_prev = false;
+        F32 prev_t = 0.f, prev_f = 0.f;
+        for (U32 k = 0; k < DEPTH_SAMPLES; ++k)
+        {
+            if (!smp[k].valid)
+            {
+                have_prev = false;
+                continue;
+            }
+            const F32 ndc = 2.f * d[k] - 1.f;
+            const F32 surface = (d[k] >= 0.999999f || fabsf(ndc + sDepthA[slot]) < 1e-7f)
+                                    ? 1e9f : sDepthB[slot] / (ndc + sDepthA[slot]);
+            const F32 f = smp[k].z - surface; // > 0: the ray point is hidden behind the surface
+            if (f >= 0.f)
+            {
+                dist = smp[k].t;
+                if (have_prev && prev_f < 0.f)
+                {
+                    const F32 u = prev_f / (prev_f - f);
+                    dist = prev_t + (smp[k].t - prev_t) * llclamp(u, 0.f, 1.f);
+                }
+                break;
+            }
+            have_prev = true;
+            prev_t = smp[k].t;
+            prev_f = f;
+        }
+        glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+        sDepthDist = dist;
+        sDepthValid = true;
+    }
+}
+
+void PATXRStereo::samplePointerDepth(const LLVector3& origin, const LLVector3& dir)
+{
+    if (!sInitialised || sW <= 0 || sH <= 0 || !sEyeRT[0].getDepth())
+    {
+        return;
+    }
+    GLint old_read_fbo = 0, old_pack = 0, old_align = 4;
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &old_read_fbo);
+    glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &old_pack);
+    glGetIntegerv(GL_PACK_ALIGNMENT, &old_align);
+    if (!sDepthPbo[0])
+    {
+        glGenBuffers(2, sDepthPbo);
+        for (GLuint pbo : sDepthPbo)
+        {
+            glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
+            glBufferData(GL_PIXEL_PACK_BUFFER, DEPTH_SAMPLES * sizeof(F32), nullptr, GL_STREAM_READ);
+        }
+        glGenFramebuffers(1, &sDepthFbo);
+    }
+    // leftovers not read in between (older slot first, so the newer result wins)
+    readDepthSlot(sDepthSlot);
+    readDepthSlot(sDepthSlot ^ 1u);
+
+    const U32 slot = sDepthSlot;
+    sDepthSlot ^= 1u;
+    DepthSample* smp = sDepthSamples[slot];
+    const glm::mat4& proj = sProj[0];
+    sDepthA[slot] = proj[2][2];
+    sDepthB[slot] = proj[3][2];
+    const F32* tan = sEyeTan[0];
+    const F32 near_z = sDepthB[slot] / (-1.f + sDepthA[slot]);
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, sDepthFbo);
+    glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, sEyeRT[0].getDepth(), 0);
+    glReadBuffer(GL_NONE);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, sDepthPbo[slot]);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    const bool complete = glCheckFramebufferStatus(GL_READ_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    for (U32 k = 0; k < DEPTH_SAMPLES; ++k)
+    {
+        DepthSample& sample = smp[k];
+        sample.valid = false;
+        sample.t = DEPTH_NEAR * powf(DEPTH_FAR / DEPTH_NEAR, (F32)k / (F32)(DEPTH_SAMPLES - 1));
+        if (!complete)
+        {
+            continue;
+        }
+        const LLVector3 v = origin + dir * sample.t - sEyeOrigin[0];
+        const F32 z = v * sEyeAt[0];
+        if (z <= near_z * 1.01f)
+        {
+            continue;
+        }
+        const F32 tx = -(v * sEyeLeft[0]) / z;
+        const F32 ty = (v * sEyeUp[0]) / z;
+        const S32 px = (S32)floorf((tx - tan[0]) / (tan[1] - tan[0]) * (F32)sW);
+        const S32 py = (S32)floorf((ty - tan[2]) / (tan[3] - tan[2]) * (F32)sH);
+        if (px < 0 || py < 0 || px >= sW || py >= sH)
+        {
+            continue;
+        }
+        sample.z = z;
+        sample.valid = true;
+        glReadPixels(px, py, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, (void*)(intptr_t)(k * sizeof(F32)));
+    }
+    sDepthPending[slot] = complete;
+    glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
+    glPixelStorei(GL_PACK_ALIGNMENT, old_align);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, old_pack);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, old_read_fbo);
+}
+
+void PATXRStereo::skipPointerDepth()
+{
+    sDepthValid = false;
+}
+
+bool PATXRStereo::pointerDepth(F32& dist)
+{
+    // between frames (idle): the samples of the last eye frame; the eye images
+    // were finished and submitted since, so the read does not wait.
+    if (sDepthPbo[0])
+    {
+        GLint old_pack = 0;
+        glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &old_pack);
+        readDepthSlot(sDepthSlot ^ 1u);
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, old_pack);
+    }
+    if (!sDepthValid)
+    {
+        return false;
+    }
+    dist = sDepthDist;
+    return true;
+}
+
 void PATXRStereo::copyToSwapchain(U32 eye, GLuint texture, S32 width, S32 height)
 {
     GLint old_read = 0, old_draw = 0;
@@ -1083,6 +1253,18 @@ void PATXRStereo::release(bool viewer_shutdown)
         glDeleteFramebuffers(1, &sDrawFbo);
         sDrawFbo = 0;
     }
+    if (sDepthFbo)
+    {
+        glDeleteFramebuffers(1, &sDepthFbo);
+        sDepthFbo = 0;
+    }
+    if (sDepthPbo[0])
+    {
+        glDeleteBuffers(2, sDepthPbo);
+        sDepthPbo[0] = sDepthPbo[1] = 0;
+    }
+    sDepthPending[0] = sDepthPending[1] = false;
+    sDepthValid = false;
     if (!viewer_shutdown)
     {
         if (sEyeBuffers)

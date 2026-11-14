@@ -114,6 +114,16 @@ namespace PATXRStereo
     // Off-axis shift of the pointer camera (LLViewerCamera::calcProjection).
     void offsetProjection(LLMatrix4& proj);
 
+    // VR pointer depth from what the eyes actually see: right after the eye
+    // images, the pointer ray (agent frame, origin = eye centre) is sampled in
+    // the depth buffer of the left eye image (screen-space march, async read);
+    // pointerDepth() gives the distance along that ray to the first visible
+    // surface a frame later (<= 0: nothing, the sky). Independent of what the
+    // pick considers pickable (alpha textures, click-through objects).
+    void samplePointerDepth(const LLVector3& origin, const LLVector3& dir);
+    void skipPointerDepth();
+    bool pointerDepth(F32& dist);
+
     // Copy eye 'eye' into an OpenXR swapchain image (GL texture) of the same size.
     void copyToSwapchain(U32 eye, GLuint texture, S32 width, S32 height);
 
