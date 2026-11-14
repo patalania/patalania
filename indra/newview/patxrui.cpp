@@ -171,7 +171,7 @@ namespace
     GLuint sFbo = 0;
 
     GLuint sProgram = 0, sVAO = 0, sVBO = 0, sDepthSampler = 0;
-    GLint sTexLoc = -1, sAlphaFixLoc = -1, sDepthLoc = -1;
+    GLint sTexLoc = -1, sAlphaFixLoc = -1, sDepthLoc = -1, sTintLoc = -1;
     bool sGLFailed = false;
 
     // Panel in the LOCAL space: centre, right/up/normal (normal towards the user), size.
@@ -280,6 +280,7 @@ namespace
         "uniform sampler2D tex;\n"
         "uniform sampler2D depth_tex;\n"
         "uniform int alpha_fix;\n"
+        "uniform int tint;\n"
         "in vec2 v_uv;\n"
         "out vec4 frag_color;\n"
         "void main()\n"
@@ -291,6 +292,11 @@ namespace
         "        c.a = max(c.a, max(c.r, max(c.g, c.b)));\n"
         "        if (texture(depth_tex, v_uv).r < 1.0) c.a = 1.0;\n"
         "        c.rgb = min(c.rgb, vec3(c.a));\n"
+        "    }\n"
+        "    if (tint != 0)\n"
+        "    {\n"
+        "        float l = max(c.r, max(c.g, c.b));\n"
+        "        c.rgb = tint == 1 ? vec3(l, 0.0, 0.0) : vec3(0.0, l, 0.0);\n"
         "    }\n"
         "    frag_color = c;\n"
         "}\n";
@@ -349,6 +355,7 @@ namespace
         sTexLoc = glGetUniformLocation(sProgram, "tex");
         sAlphaFixLoc = glGetUniformLocation(sProgram, "alpha_fix");
         sDepthLoc = glGetUniformLocation(sProgram, "depth_tex");
+        sTintLoc = glGetUniformLocation(sProgram, "tint");
         glGenSamplers(1, &sDepthSampler);
         glSamplerParameteri(sDepthSampler, GL_TEXTURE_COMPARE_MODE, GL_NONE);
         glSamplerParameteri(sDepthSampler, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -614,6 +621,12 @@ namespace
         // the eyes see a pointer at the wrong depth double, a depth jump is less of a bother.
         sPtrDepth = sPtrTarget > 0.f ? llclamp(sPtrTarget * POINTER_IN_FRONT, POINTER_MIN_DIST, POINTER_SKY_DIST)
                                      : POINTER_SKY_DIST;
+        // Diagnosis: fixed depth in metres (0 = off).
+        static LLCachedControl<F32> fixed_depth(gSavedSettings, "PATVRPointerFixedDepth", 0.f);
+        if ((F32)fixed_depth > 0.f)
+        {
+            sPtrDepth = llclamp((F32)fixed_depth, POINTER_MIN_DIST, 100.f);
+        }
     }
 
     // Panel texture bound as draw target on sFbo: while the pointer is over the
@@ -1335,7 +1348,7 @@ bool PATXRUI::pointerCamera(XrVector3f& origin, XrVector3f& at, XrVector3f& up, 
 }
 
 bool PATXRUI::drawWorldPointerWith(const std::function<bool(const XrVector3f&, F32*)>& to_clip, GLuint texture, S32 width,
-                                   S32 height)
+                                   S32 height, S32 eye)
 {
     if (!hasImage() || !gViewerWindow || !gViewerWindow->getWindow() || pointerHidden() || sTexW <= 0)
     {
@@ -1403,14 +1416,19 @@ bool PATXRUI::drawWorldPointerWith(const std::function<bool(const XrVector3f&, F
         }
     }
     glBindTexture(GL_TEXTURE_2D, img->tex);
+    // Diagnosis (PATVRPointerStereoColors): left eye red, right eye green.
+    static LLCachedControl<bool> stereo_colors(gSavedSettings, "PATVRPointerStereoColors", false);
+    glUniform1i(sTintLoc, (stereo_colors && eye >= 0) ? (eye == 0 ? 1 : 2) : 0);
     drawQuad(cursor_clip, FULL_UV);
+    glUniform1i(sTintLoc, 0);
     glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
     return true;
 }
 
-void PATXRUI::drawWorldPointer(const XrView& view, GLuint texture, S32 width, S32 height)
+void PATXRUI::drawWorldPointer(const XrView& view, GLuint texture, S32 width, S32 height, S32 eye)
 {
-    drawWorldPointerWith([&](const XrVector3f& p, F32* out) { toClip(view, p, out); return true; }, texture, width, height);
+    drawWorldPointerWith([&](const XrVector3f& p, F32* out) { toClip(view, p, out); return true; }, texture, width, height,
+                         eye);
 }
 
 void PATXRUI::setPointerTarget(bool on_ui, F32 dist)

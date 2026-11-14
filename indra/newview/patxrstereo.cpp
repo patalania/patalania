@@ -396,7 +396,7 @@ namespace
                     out[3] = c.w;
                     return true;
                 },
-                rt.getTexture(), sW, sH);
+                rt.getTexture(), sW, sH, (S32)eye);
             sPointerInEyes = sPointerInEyes || drawn; // (framebuffer, viewport and GL state restored by PATXRUI)
         }
 

@@ -1153,7 +1153,7 @@ namespace
                     }
                     if (ui && !(sXR.eyesRendered && PATXRStereo::pointerDrawnInEyes()))
                     {
-                        PATXRUI::drawWorldPointer(sXR.views[i], eye.images[index].image, eye.width, eye.height);
+                        PATXRUI::drawWorldPointer(sXR.views[i], eye.images[index].image, eye.width, eye.height, (S32)i);
                     }
                     if (ui && i == 1)
                     {
