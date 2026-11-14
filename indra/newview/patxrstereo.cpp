@@ -59,6 +59,7 @@
 #include "rlvactions.h"
 
 #include <glm/glm.hpp>
+#include <vector>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -159,6 +160,28 @@ namespace
     bool sDepthValid = false;
     F32 sDepthDist = -1.f;
     bool sPointerInEyes = false;   // the pointer was drawn in the world pass of this frame
+    // Stereo diagnosis (PATVRPointerStereoDiag): max. element difference between
+    // the matrices in effect after each eye's geometry pass and the intended ones.
+    F32 sDiagMatErr[2][2] = { { -1.f, -1.f }, { -1.f, -1.f } }; // [eye][view, proj]
+
+    F32 matDiff(const glm::mat4& a, const glm::mat4& b)
+    {
+        F32 m = 0.f;
+        for (int c = 0; c < 4; ++c)
+        {
+            for (int r = 0; r < 4; ++r)
+            {
+                m = llmax(m, fabsf(a[c][r] - b[c][r]));
+            }
+        }
+        return m;
+    }
+
+    bool stereoDiag()
+    {
+        static LLCachedControl<bool> diag(gSavedSettings, "PATVRPointerStereoDiag", false);
+        return diag;
+    }
     bool sHaveTagFrame = false;      // name tag geometry of the last rendered eye (pick)
     LLVector3 sTagHead;              // head centre of that eye frame (agent)
     F32 sTagPixelScale = 0.f;        // tan(vfov/2) / (eye height in pixels / 2)
@@ -418,6 +441,11 @@ namespace
         gPipeline.mRT->deferredScreen.clear();
         gGL.setColorMask(true, true);
         gPipeline.renderGeomDeferred(cam, false); // occlusion queries ran for the left eye
+        if (stereoDiag())
+        {
+            sDiagMatErr[1][0] = matDiff(get_current_modelview(), sView[1]);
+            sDiagMatErr[1][1] = matDiff(get_current_projection(), sProj[1]);
+        }
 
         for (S32 i = 0; i < gGLManager.mNumTextureImageUnits; i++)
         {
@@ -705,6 +733,12 @@ void PATXRStereo::renderEyes(const XrView views[2], const PATXRPalm palms[2])
     if (!sInEyes)
     {
         return;
+    }
+    if (stereoDiag())
+    {
+        // after display() rendered the left eye's world
+        sDiagMatErr[0][0] = matDiff(get_current_modelview(), sView[0]);
+        sDiagMatErr[0][1] = matDiff(get_current_projection(), sProj[0]);
     }
     finishEye(0, views[0], palms);
     renderSecondEye();
@@ -1137,8 +1171,194 @@ namespace
     }
 }
 
+namespace
+{
+    // Pixel of an agent point in an eye image (intended camera); false when behind or outside.
+    bool eyePixel(U32 e, const LLVector3& x, F32& px, F32& py, F32& z)
+    {
+        const LLVector3 v = x - sEyeOrigin[e];
+        z = v * sEyeAt[e];
+        if (z < 0.05f)
+        {
+            return false;
+        }
+        const F32 tx = -(v * sEyeLeft[e]) / z;
+        const F32 ty = (v * sEyeUp[e]) / z;
+        px = (tx - sEyeTan[e][0]) / (sEyeTan[e][1] - sEyeTan[e][0]) * (F32)sW;
+        py = (ty - sEyeTan[e][2]) / (sEyeTan[e][3] - sEyeTan[e][2]) * (F32)sH;
+        return px >= 0.f && py >= 0.f && px < (F32)sW && py < (F32)sH;
+    }
+
+    // Synchronous depth march along the ray in eye e's depth buffer (diagnosis only).
+    F32 marchSync(U32 e, const LLVector3& origin, const LLVector3& dir)
+    {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, sReadFbo);
+        glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+        glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, sEyeRT[e].getDepth(), 0);
+        glReadBuffer(GL_NONE);
+        const F32 A = sProj[e][2][2], B = sProj[e][3][2];
+        F32 prev_t = 0.f, prev_f = 0.f, result = -1.f;
+        bool have_prev = false;
+        for (U32 k = 0; k < 128; ++k)
+        {
+            const F32 t = 0.1f * powf(300.f, (F32)k / 127.f);
+            F32 px, py, z;
+            if (!eyePixel(e, origin + dir * t, px, py, z))
+            {
+                have_prev = false;
+                continue;
+            }
+            F32 d = 1.f;
+            glReadPixels((S32)px, (S32)py, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &d);
+            const F32 ndc = 2.f * d - 1.f;
+            const F32 surface = d >= 0.999999f ? 1e9f : B / (ndc + A);
+            const F32 f = z - surface;
+            if (f >= 0.f)
+            {
+                result = (have_prev && prev_f < 0.f) ? prev_t + (t - prev_t) * llclamp(prev_f / (prev_f - f), 0.f, 1.f) : t;
+                break;
+            }
+            have_prev = true;
+            prev_t = t;
+            prev_f = f;
+        }
+        glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
+        return result;
+    }
+
+    // Grey values of a rectangle of eye e's colour image (diagnosis only).
+    void readGrey(U32 e, S32 x, S32 y, S32 w, S32 h, std::vector<F32>& out)
+    {
+        std::vector<U8> rgba((size_t)w * h * 4);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, sReadFbo);
+        glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
+        glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, sEyeRT[e].getTexture(), 0);
+        glReadBuffer(GL_COLOR_ATTACHMENT0);
+        glReadPixels(x, y, w, h, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+        glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+        out.resize((size_t)w * h);
+        for (size_t i = 0; i < out.size(); ++i)
+        {
+            out[i] = 0.299f * rgba[i * 4] + 0.587f * rgba[i * 4 + 1] + 0.114f * rgba[i * 4 + 2];
+        }
+    }
+
+    // What the two eye images really show at the pointer: depth march in both
+    // depth buffers, and a stereo match of the left image patch along the
+    // epipolar line in the right image (finds the depth of whatever is visible,
+    // also surfaces without depth such as alpha-blended ones).
+    void diagnoseStereo(const LLVector3& origin, const LLVector3& dir)
+    {
+        static F64 s_last = 0.0;
+        const F64 now = LLTimer::getTotalSeconds();
+        if (now - s_last < 0.5 || !sReadFbo)
+        {
+            return;
+        }
+        s_last = now;
+        GLint old_read_fbo = 0, old_pack = 0, old_align = 4;
+        glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &old_read_fbo);
+        glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &old_pack);
+        glGetIntegerv(GL_PACK_ALIGNMENT, &old_align);
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+        glPixelStorei(GL_PACK_ALIGNMENT, 1);
+
+        const F32 hit_l = marchSync(0, origin, dir);
+        const F32 hit_r = marchSync(1, origin, dir);
+
+        // stereo match: left patch at the pointer (at the left eye's depth hit, 5 m without one)
+        F32 match = -1.f, best_sad = 0.f, ratio = 0.f, contrast = 0.f;
+        const LLVector3 p = origin + dir * (hit_l > 0.f ? hit_l : 5.f);
+        F32 lx, ly, lz;
+        constexpr S32 R = 7; // patch 15 x 15
+        if (eyePixel(0, p, lx, ly, lz) && lx >= R && ly >= R && lx < sW - R - 1 && ly < sH - R - 1)
+        {
+            std::vector<F32> patch;
+            readGrey(0, (S32)lx - R, (S32)ly - R, 2 * R + 1, 2 * R + 1, patch);
+            F32 mean = 0.f;
+            for (F32 g : patch)
+            {
+                mean += g;
+            }
+            mean /= (F32)patch.size();
+            for (F32 g : patch)
+            {
+                contrast += (g - mean) * (g - mean);
+            }
+            contrast = sqrtf(contrast / (F32)patch.size());
+            LLVector3 ray_l = p - sEyeOrigin[0];
+            ray_l.normVec();
+            // candidate depths along the left eye's ray -> right image pixels
+            constexpr U32 N = 400;
+            F32 cx[N], cy[N], cs[N];
+            U32 n = 0;
+            S32 x0 = sW, x1 = -1, y0 = sH, y1 = -1;
+            for (U32 k = 0; k < N; ++k)
+            {
+                const F32 sd = 0.2f * powf(250.f, (F32)k / (F32)(N - 1));
+                F32 rx, ry, rz;
+                if (eyePixel(1, sEyeOrigin[0] + ray_l * sd, rx, ry, rz) && rx >= R && ry >= R && rx < sW - R - 1 &&
+                    ry < sH - R - 1)
+                {
+                    cx[n] = rx;
+                    cy[n] = ry;
+                    cs[n] = sd;
+                    ++n;
+                    x0 = llmin(x0, (S32)rx - R);
+                    x1 = llmax(x1, (S32)rx + R + 1);
+                    y0 = llmin(y0, (S32)ry - R);
+                    y1 = llmax(y1, (S32)ry + R + 1);
+                }
+            }
+            if (n > 0 && x1 - x0 < 1200 && y1 - y0 < 400)
+            {
+                const S32 w = x1 - x0, h = y1 - y0;
+                std::vector<F32> strip;
+                readGrey(1, x0, y0, w, h, strip);
+                F32 best = 1e30f, sum = 0.f;
+                for (U32 k = 0; k < n; ++k)
+                {
+                    const S32 bx = (S32)cx[k] - R - x0, by = (S32)cy[k] - R - y0;
+                    F32 sad = 0.f;
+                    for (S32 j = 0; j <= 2 * R; ++j)
+                    {
+                        for (S32 i = 0; i <= 2 * R; ++i)
+                        {
+                            sad += fabsf(patch[j * (2 * R + 1) + i] - strip[(size_t)(by + j) * w + bx + i]);
+                        }
+                    }
+                    sad /= (F32)patch.size();
+                    sum += sad;
+                    if (sad < best)
+                    {
+                        best = sad;
+                        match = cs[k];
+                    }
+                }
+                best_sad = best;
+                ratio = best / llmax(0.001f, sum / (F32)n);
+            }
+        }
+        glPixelStorei(GL_PACK_ALIGNMENT, old_align);
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, old_pack);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, old_read_fbo);
+
+        LL_INFOS("PATXRPointer") << llformat("stereo diag: depth buffer along the pointer ray L %.2f m, R %.2f m; image match "
+                                             "(left patch found in right image) %.2f m from the left eye (sad %.1f, "
+                                             "best/mean %.2f, contrast %.1f); matrices after geometry pass: L view %.5f "
+                                             "proj %.5f, R view %.5f proj %.5f; pointer depth %.2f m",
+                                             hit_l, hit_r, match, best_sad, ratio, contrast, sDiagMatErr[0][0],
+                                             sDiagMatErr[0][1], sDiagMatErr[1][0], sDiagMatErr[1][1],
+                                             sDepthValid ? sDepthDist : -1.f) << LL_ENDL;
+    }
+}
+
 void PATXRStereo::samplePointerDepth(const LLVector3& origin, const LLVector3& dir)
 {
+    if (stereoDiag())
+    {
+        diagnoseStereo(origin, dir);
+    }
     if (!sInitialised || sW <= 0 || sH <= 0 || !sEyeRT[0].getDepth())
     {
         return;
