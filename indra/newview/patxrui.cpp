@@ -42,6 +42,7 @@
 #include "lltoolfocus.h"
 #include "llrender.h"
 #include "llrendertarget.h"
+#include "lltooltip.h"
 #include "llviewercontrol.h"
 #include "llviewerwindow.h"
 #include "llwindow.h"
@@ -60,9 +61,10 @@ namespace
     constexpr F32 FOLLOW_START = 25.f * DEG_TO_RAD; // mode "follow": start turning after the view left this far
     constexpr F32 FOLLOW_STOP = 3.f * DEG_TO_RAD;
     constexpr F32 FOLLOW_TIME = 0.4f;   // s, time constant of the follow movement
-    constexpr F32 POINTER_MIN_DIST = 0.25f; // m, nearest pointer depth in the world
+    constexpr F32 POINTER_MIN_DIST = 0.1f;  // m, nearest pointer depth in the world
     constexpr F32 POINTER_SKY_DIST = 20.f;  // m, depth without a hit (sky) and farthest depth
-    constexpr F32 POINTER_DEPTH_TIME = 0.035f; // s, time constant of depth changes (~95 % in 0.1 s)
+    constexpr F32 POINTER_DEPTH_TIME = 0.025f; // s, time constant when the depth grows (~95 % in 75 ms)
+    constexpr F32 POINTER_IN_FRONT = 0.985f;   // hits: slightly in front of the surface, never behind it
 
     // PATVRUIMode
     enum EMode { MODE_ROOM = 0, MODE_HEAD = 1, MODE_FOLLOW = 2 };
@@ -192,6 +194,13 @@ namespace
     bool sPtrOnUI = true;
     F32 sPtrTarget = -1.f;   // world: metres along the ray, <= 0 = sky
     F32 sPtrDepth = -1.f;    // smoothed depth actually drawn, -1 = not yet known
+
+    // Tooltip at the pointer while it is over the world: cut out of the panel
+    // texture in prepare() and drawn at the pointer depth (drawWorldPointer).
+    GLuint sTipTex = 0;
+    S32 sTipTexW = 0, sTipTexH = 0;
+    bool sTipValid = false;
+    S32 sTipX = 0, sTipY = 0, sTipW = 0, sTipH = 0; // panel pixels, GL (y up)
     bool sSavedUIVisible = true;
     bool sSavedHUDs = true;
 
@@ -565,7 +574,7 @@ namespace
     }
 
     // Point on the panel plane under the mouse (LOCAL space); inside = on the panel itself.
-    bool pointerPanelPoint(XrVector3f& p, bool& inside)
+    bool pointerPanelPoint(XrVector3f& p, bool& inside, F32* px = nullptr, F32* py = nullptr)
     {
         if (!gViewerWindow || sTexW <= 0 || sTexH <= 0)
         {
@@ -576,6 +585,11 @@ namespace
         const F32 mx = (F32)mouse.mX * scale.mV[VX];
         const F32 my = (F32)mouse.mY * scale.mV[VY];
         inside = mx >= 0.f && my >= 0.f && mx < (F32)sTexW && my < (F32)sTexH;
+        if (px && py)
+        {
+            *px = mx;
+            *py = my;
+        }
         p = add(add(sC, mul(sR, (mx / sTexW - 0.5f) * sW)), mul(sU, (my / sTexH - 0.5f) * sH));
         return true;
     }
@@ -598,13 +612,71 @@ namespace
             sPtrDepth = panel_dist;
             return;
         }
-        const F32 target = sPtrTarget > 0.f ? llclamp(sPtrTarget, POINTER_MIN_DIST, POINTER_SKY_DIST) : POINTER_SKY_DIST;
-        if (sPtrDepth <= 0.f)
+        const F32 target = sPtrTarget > 0.f ? llclamp(sPtrTarget * POINTER_IN_FRONT, POINTER_MIN_DIST, POINTER_SKY_DIST)
+                                            : POINTER_SKY_DIST;
+        if (sPtrDepth <= 0.f || target <= sPtrDepth)
         {
-            sPtrDepth = panel_dist;
+            // Nearer: at once - a pointer behind the surface it lies on is what the eyes see double.
+            sPtrDepth = target;
+            return;
         }
+        // Farther (an edge, a gap, the sky): a short glide, so it does not jump into the distance.
         const F32 a = 1.f - expf(-llmax(0.f, dt) / POINTER_DEPTH_TIME);
         sPtrDepth = expf(logf(sPtrDepth) + (logf(target) - logf(sPtrDepth)) * a);
+    }
+
+    // Panel texture bound as draw target on sFbo: while the pointer is over the
+    // world, move the tooltip next to it out of the panel (it would sit in the
+    // panel plane while the eyes look at the hit, and be seen double).
+    void grabToolTip()
+    {
+        sTipValid = false;
+        if (sPtrOnUI || !gViewerWindow || !LLToolTipMgr::instance().toolTipVisible())
+        {
+            return;
+        }
+        const LLRect r = LLToolTipMgr::instance().getToolTipRect();
+        const LLVector2& scale = gViewerWindow->getDisplayScale();
+        const S32 x0 = llclamp(ll_round((F32)r.mLeft * scale.mV[VX]), 0, sTexW);
+        const S32 x1 = llclamp(ll_round((F32)r.mRight * scale.mV[VX]), 0, sTexW);
+        const S32 y0 = llclamp(ll_round((F32)r.mBottom * scale.mV[VY]), 0, sTexH);
+        const S32 y1 = llclamp(ll_round((F32)r.mTop * scale.mV[VY]), 0, sTexH);
+        if (x1 - x0 < 2 || y1 - y0 < 2)
+        {
+            return;
+        }
+        sTipX = x0;
+        sTipY = y0;
+        sTipW = x1 - x0;
+        sTipH = y1 - y0;
+        if (!sTipTex)
+        {
+            glGenTextures(1, &sTipTex);
+        }
+        glBindTexture(GL_TEXTURE_2D, sTipTex);
+        if (sTipTexW != sTipW || sTipTexH != sTipH)
+        {
+            sTipTexW = sTipW;
+            sTipTexH = sTipH;
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, sTipW, sTipH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        }
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, sFbo);
+        glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, sTipX, sTipY, sTipW, sTipH);
+        glGenerateMipmap(GL_TEXTURE_2D);
+        // cut it out of the panel: there the world shows through, the tooltip is drawn at the pointer
+        GLfloat clear[4] = { 0.f, 0.f, 0.f, 0.f };
+        glGetFloatv(GL_COLOR_CLEAR_VALUE, clear);
+        glEnable(GL_SCISSOR_TEST);
+        glScissor(sTipX, sTipY, sTipW, sTipH);
+        glClearColor(0.f, 0.f, 0.f, 0.f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDisable(GL_SCISSOR_TEST);
+        glClearColor(clear[0], clear[1], clear[2], clear[3]);
+        sTipValid = true;
     }
 
     // Pointer onto the panel texture (bound as draw target, blending set up).
@@ -880,6 +952,13 @@ void PATXRUI::release()
         glDeleteTextures(1, &sPanelTex);
         sPanelTex = 0;
     }
+    if (sTipTex)
+    {
+        glDeleteTextures(1, &sTipTex);
+        sTipTex = 0;
+    }
+    sTipTexW = sTipTexH = 0;
+    sTipValid = false;
     if (sFbo)
     {
         glDeleteFramebuffers(1, &sFbo);
@@ -1138,6 +1217,7 @@ void PATXRUI::prepare()
     drawQuad(clip, FULL_UV);
     glEnable(GL_BLEND);
     glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    grabToolTip();
     drawPointer();
 
     glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
@@ -1271,7 +1351,8 @@ void PATXRUI::drawWorldPointer(const XrView& view, GLuint texture, S32 width, S3
     }
     XrVector3f p;
     bool inside = false;
-    if (!pointerPanelPoint(p, inside) || (inside && sPtrOnUI))
+    F32 mx = 0.f, my = 0.f;
+    if (!pointerPanelPoint(p, inside, &mx, &my) || (inside && sPtrOnUI))
     {
         return; // over the UI: drawn into the panel texture
     }
@@ -1301,9 +1382,23 @@ void PATXRUI::drawWorldPointer(const XrView& view, GLuint texture, S32 width, S3
     glViewport(0, 0, width, height);
     glEnable(GL_BLEND);
     glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-    glBindTexture(GL_TEXTURE_2D, img->tex);
     glUniform1i(sAlphaFixLoc, 0);
     F32 clip[4][4];
+    if (sTipValid && sTipTex)
+    {
+        // tooltip: same place relative to the pointer as on the panel, at the pointer depth
+        const F32 mp = (sW / (F32)sTexW) * k;
+        auto tip = [&](F32 px, F32 py) { return add(add(q, mul(sR, (px - mx) * mp)), mul(sU, (py - my) * mp)); };
+        const F32 l = (F32)sTipX, b = (F32)sTipY, r = (F32)(sTipX + sTipW), t2 = (F32)(sTipY + sTipH);
+        const XrVector3f tc[4] = { tip(l, b), tip(r, b), tip(l, t2), tip(r, t2) };
+        for (U32 i = 0; i < 4; ++i)
+        {
+            toClip(view, tc[i], clip[i]);
+        }
+        glBindTexture(GL_TEXTURE_2D, sTipTex);
+        drawQuad(clip, FULL_UV);
+    }
+    glBindTexture(GL_TEXTURE_2D, img->tex);
     for (U32 i = 0; i < 4; ++i)
     {
         toClip(view, corners[i], clip[i]);

@@ -52,6 +52,7 @@
 #include "llfocusmgr.h"
 #include "lltoolmgr.h"
 #include "lltoolpie.h"
+#include "llviewerobject.h"
 #include "lluictrl.h"
 #include "lltrans.h"
 #include "llviewercontrol.h"
@@ -1608,26 +1609,37 @@ void PATXRSession::pointerHover(bool over_ui)
     }
 
     // What the pointer points at: the pointer tool picked right now in its hover
-    // (same ray as the clicks) - reuse it. Other tools (build, grab, mouselook):
-    // an own pick that touches nothing (no mLastPick, no callback), when the
-    // pointer moved and every few frames otherwise (the view moves, too).
+    // (same ray as the clicks) - reuse it, unless it hit an avatar: without
+    // rigged picking an avatar is only hit on its collision ellipsoids, and
+    // mesh bodies / rigged attachments not at all, so the depth is off by
+    // centimetres - too much right in front of the eyes. Then, and for other
+    // tools (build, grab, mouselook), an own pick with rigged meshes that
+    // touches nothing (no mLastPick, no callback): when the pointer moved
+    // (rigged: at most every 2nd frame) and every 3rd frame otherwise.
     static LLPickInfo s_pick;
     static LLCoordGL s_pick_mouse(-99999, -99999);
     static U32 s_frames = 0;
     LLToolPie* pie = LLToolPie::getInstance();
     const LLPickInfo* pick = nullptr;
+    bool on_avatar = false;
     if (!over_ui && !gFocusMgr.getMouseCapture() && LLToolMgr::getInstance()->getCurrentTool() == pie &&
         pie->getHoverPick().mMousePt == mouse)
     {
         pick = &pie->getHoverPick();
+        if (pick->mPickType == LLPickInfo::PICK_OBJECT)
+        {
+            LLPointer<LLViewerObject> obj = pick->getObject();
+            on_avatar = obj.notNull() && (obj->isAvatar() || obj->isAttachment());
+        }
     }
-    else
+    if (!pick || on_avatar)
     {
-        if (!(s_pick_mouse == mouse) || ++s_frames >= 3)
+        ++s_frames;
+        if ((!(s_pick_mouse == mouse) && s_frames >= 2) || s_frames >= 3)
         {
             s_frames = 0;
             s_pick_mouse = mouse;
-            s_pick = LLPickInfo(mouse, gKeyboard ? gKeyboard->currentMask(true) : MASK_NONE, false, false, false, false, false,
+            s_pick = LLPickInfo(mouse, gKeyboard ? gKeyboard->currentMask(true) : MASK_NONE, false, true, false, false, false,
                                 false, nullptr);
             s_pick.fetchResults();
         }
