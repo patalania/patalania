@@ -1621,11 +1621,12 @@ void PATXRSession::pointerHover(bool over_ui)
     static U32 s_frames = 0;
     LLToolPie* pie = LLToolPie::getInstance();
     const LLPickInfo* pick = nullptr;
+    const LLPickInfo* hover = nullptr;
     bool on_avatar = false;
     if (!over_ui && !gFocusMgr.getMouseCapture() && LLToolMgr::getInstance()->getCurrentTool() == pie &&
         pie->getHoverPick().mMousePt == mouse)
     {
-        pick = &pie->getHoverPick();
+        pick = hover = &pie->getHoverPick();
         if (pick->mPickType == LLPickInfo::PICK_OBJECT)
         {
             LLPointer<LLViewerObject> obj = pick->getObject();
@@ -1651,14 +1652,29 @@ void PATXRSession::pointerHover(bool over_ui)
         PATXRUI::setPointerTarget(true, 0.f); // HUD attachments are on the panel
         return;
     }
-    F32 dist = -1.f; // sky
     LLVector3 dir;
     XrVector3f o, d;
     LLVector3 eye;
-    if (pick->mPickType != LLPickInfo::PICK_INVALID && !pick->mPosGlobal.isExactlyZero() &&
-        mouseDirection(mouse.mX, mouse.mY, dir) && PATXRUI::rayRoom(0.5f, 0.5f, o, d) && PATXRStereo::roomPointToAgent(o, eye))
+    const bool ray = mouseDirection(mouse.mX, mouse.mY, dir) && PATXRUI::rayRoom(0.5f, 0.5f, o, d) &&
+                     PATXRStereo::roomPointToAgent(o, eye);
+    auto hitDist = [&](const LLPickInfo* p) -> F32
     {
-        dist = (gAgent.getPosAgentFromGlobal(pick->mPosGlobal) - eye) * dir;
+        if (!ray || !p || p->mPickType == LLPickInfo::PICK_INVALID || p->mPosGlobal.isExactlyZero())
+        {
+            return -1.f; // sky
+        }
+        return (gAgent.getPosAgentFromGlobal(p->mPosGlobal) - eye) * dir;
+    };
+    F32 dist = hitDist(pick);
+    if (hover && pick != hover)
+    {
+        // Over an avatar: the hover pick of this very frame (name tag, ellipsoid) wins
+        // when it is nearer than the throttled rigged pick - never behind what is seen.
+        const F32 hover_dist = hitDist(hover);
+        if (hover_dist > 0.f && (dist <= 0.f || hover_dist < dist))
+        {
+            dist = hover_dist;
+        }
     }
     PATXRUI::setPointerTarget(false, dist);
 }
